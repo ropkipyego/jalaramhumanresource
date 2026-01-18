@@ -5,8 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ClipboardList, Loader2, Mail, Lock, User, IdCard } from 'lucide-react';
+import { ClipboardList, Loader2, Mail, Lock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
 
@@ -15,29 +14,20 @@ const loginSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
-const signupSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
-  fullName: z.string().min(2, 'Full name must be at least 2 characters'),
-  staffId: z.string().min(3, 'Staff ID must be at least 3 characters'),
-});
-
 const magicLinkSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
 });
 
 export default function Auth() {
   const navigate = useNavigate();
-  const { user, signIn, signUp, signInWithMagicLink } = useAuth();
+  const { user, signIn, signInWithMagicLink } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const [authMode, setAuthMode] = useState<'login' | 'signup' | 'magic'>('login');
+  const [authMode, setAuthMode] = useState<'login' | 'magic'>('magic');
 
   // Form states
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [staffId, setStaffId] = useState('');
 
   useEffect(() => {
     if (user) {
@@ -68,43 +58,6 @@ export default function Auth() {
             ? 'Invalid email or password. Please try again.'
             : error.message,
           variant: 'destructive',
-        });
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-
-    try {
-      const validation = signupSchema.safeParse({ email, password, fullName, staffId });
-      if (!validation.success) {
-        toast({
-          title: 'Validation Error',
-          description: validation.error.errors[0].message,
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      const { error } = await signUp(email, password, fullName, staffId);
-      if (error) {
-        const errorMessage = error.message.includes('already registered')
-          ? 'This email is already registered. Please sign in instead.'
-          : error.message;
-        
-        toast({
-          title: 'Signup Failed',
-          description: errorMessage,
-          variant: 'destructive',
-        });
-      } else {
-        toast({
-          title: 'Account Created',
-          description: 'Your account has been created successfully. You are now logged in.',
         });
       }
     } finally {
@@ -160,175 +113,116 @@ export default function Auth() {
           </div>
         </CardHeader>
 
-        <CardContent>
-          <Tabs value={authMode} onValueChange={(v) => setAuthMode(v as any)} className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-6">
-              <TabsTrigger value="login">Sign In</TabsTrigger>
-              <TabsTrigger value="signup">Sign Up</TabsTrigger>
-              <TabsTrigger value="magic">Magic Link</TabsTrigger>
-            </TabsList>
+        <CardContent className="space-y-6">
+          {/* Toggle buttons */}
+          <div className="flex rounded-lg bg-muted p-1">
+            <button
+              type="button"
+              onClick={() => setAuthMode('magic')}
+              className={`flex-1 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+                authMode === 'magic'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Magic Link
+            </button>
+            <button
+              type="button"
+              onClick={() => setAuthMode('login')}
+              className={`flex-1 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+                authMode === 'login'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Password
+            </button>
+          </div>
 
-            <TabsContent value="login">
-              <form onSubmit={handleLogin} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="login-email">Email</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="login-email"
-                      type="email"
-                      placeholder="you@hospital.org"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="pl-10"
-                      required
-                    />
-                  </div>
+          {authMode === 'magic' ? (
+            <form onSubmit={handleMagicLink} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="magic-email">Email</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="magic-email"
+                    type="email"
+                    placeholder="you@hospital.org"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="pl-10"
+                    required
+                  />
                 </div>
+              </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="login-password">Password</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="login-password"
-                      type="password"
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="pl-10"
-                      required
-                    />
-                  </div>
+              <p className="text-sm text-muted-foreground">
+                We'll send you a magic link to sign in without a password.
+              </p>
+
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Sending link...
+                  </>
+                ) : (
+                  'Send Magic Link'
+                )}
+              </Button>
+            </form>
+          ) : (
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="login-email">Email</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="login-email"
+                    type="email"
+                    placeholder="you@hospital.org"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="pl-10"
+                    required
+                  />
                 </div>
+              </div>
 
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Signing in...
-                    </>
-                  ) : (
-                    'Sign In'
-                  )}
-                </Button>
-              </form>
-            </TabsContent>
-
-            <TabsContent value="signup">
-              <form onSubmit={handleSignup} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="signup-name">Full Name</Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="signup-name"
-                      type="text"
-                      placeholder="Dr. Jane Smith"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      className="pl-10"
-                      required
-                    />
-                  </div>
+              <div className="space-y-2">
+                <Label htmlFor="login-password">Password</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="login-password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="pl-10"
+                    required
+                  />
                 </div>
+              </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="signup-staffid">Staff ID</Label>
-                  <div className="relative">
-                    <IdCard className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="signup-staffid"
-                      type="text"
-                      placeholder="STAFF001"
-                      value={staffId}
-                      onChange={(e) => setStaffId(e.target.value)}
-                      className="pl-10"
-                      required
-                    />
-                  </div>
-                </div>
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Signing in...
+                  </>
+                ) : (
+                  'Sign In'
+                )}
+              </Button>
+            </form>
+          )}
 
-                <div className="space-y-2">
-                  <Label htmlFor="signup-email">Email</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="signup-email"
-                      type="email"
-                      placeholder="you@hospital.org"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="pl-10"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="signup-password">Password</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="signup-password"
-                      type="password"
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="pl-10"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Creating account...
-                    </>
-                  ) : (
-                    'Create Account'
-                  )}
-                </Button>
-              </form>
-            </TabsContent>
-
-            <TabsContent value="magic">
-              <form onSubmit={handleMagicLink} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="magic-email">Email</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="magic-email"
-                      type="email"
-                      placeholder="you@hospital.org"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="pl-10"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <p className="text-sm text-muted-foreground">
-                  We'll send you a magic link to sign in without a password.
-                </p>
-
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Sending link...
-                    </>
-                  ) : (
-                    'Send Magic Link'
-                  )}
-                </Button>
-              </form>
-            </TabsContent>
-          </Tabs>
+          <div className="text-center text-sm text-muted-foreground">
+            <p>Don't have an account? Contact your administrator for an invitation.</p>
+          </div>
         </CardContent>
       </Card>
     </div>

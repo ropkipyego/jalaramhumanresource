@@ -6,12 +6,14 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import Auth from "@/pages/Auth";
+import Onboarding from "@/pages/Onboarding";
 import Dashboard from "@/pages/Dashboard";
 import MyRota from "@/pages/MyRota";
 import MyLeave from "@/pages/MyLeave";
 import DepartmentRota from "@/pages/DepartmentRota";
 import StaffDirectory from "@/pages/StaffDirectory";
 import LeaveAdmin from "@/pages/LeaveAdmin";
+import InviteStaff from "@/pages/InviteStaff";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,6 +27,7 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/auth" element={<Auth />} />
+            <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/" element={<AppLayout />}>
               <Route index element={<Navigate to="/dashboard" replace />} />
               <Route path="dashboard" element={<Dashboard />} />
@@ -33,6 +36,7 @@ const App = () => (
               <Route path="rota" element={<DepartmentRota />} />
               <Route path="staff" element={<StaffDirectory />} />
               <Route path="leave-admin" element={<LeaveAdmin />} />
+              <Route path="invite" element={<InviteStaff />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
