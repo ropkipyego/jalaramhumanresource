@@ -9,6 +9,7 @@ import Auth from "@/pages/Auth";
 import Dashboard from "@/pages/Dashboard";
 import MyRota from "@/pages/MyRota";
 import MyLeave from "@/pages/MyLeave";
+import DepartmentRota from "@/pages/DepartmentRota";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,6 +28,7 @@ const App = () => (
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="my-rota" element={<MyRota />} />
               <Route path="my-leave" element={<MyLeave />} />
+              <Route path="rota" element={<DepartmentRota />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
