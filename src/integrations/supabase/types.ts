@@ -414,6 +414,16 @@ export type Database = {
         Args: { _department_id: string; _user_id: string }
         Returns: boolean
       }
+      log_audit: {
+        Args: {
+          _action: string
+          _new_data?: Json
+          _old_data?: Json
+          _record_id?: string
+          _table_name: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       app_role: "STAFF" | "HEAD" | "ADMIN" | "SUPER_ADMIN"
