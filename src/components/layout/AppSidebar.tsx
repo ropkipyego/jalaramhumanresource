@@ -43,7 +43,7 @@ const mainNavItems: NavItem[] = [
 
 const departmentNavItems: NavItem[] = [
   { title: 'Department Rota', url: '/rota', icon: ClipboardList, roles: ['HEAD', 'ADMIN', 'SUPER_ADMIN'] },
-  { title: 'Leave Requests', url: '/leave-requests', icon: CalendarDays, roles: ['ADMIN', 'SUPER_ADMIN'] },
+  { title: 'Leave Admin', url: '/leave-admin', icon: CalendarDays, roles: ['HEAD', 'ADMIN', 'SUPER_ADMIN'] },
   { title: 'Staff Directory', url: '/staff', icon: Users, roles: ['HEAD', 'ADMIN', 'SUPER_ADMIN'] },
 ];
 
