@@ -309,12 +309,12 @@ const InviteStaff = () => {
                   <Building2 className="h-4 w-4" />
                   Department (Optional)
                 </Label>
-                <Select value={departmentId} onValueChange={setDepartmentId}>
+                <Select value={departmentId || "none"} onValueChange={(v) => setDepartmentId(v === "none" ? "" : v)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Pre-assign department" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">No pre-assignment</SelectItem>
+                    <SelectItem value="none">No pre-assignment</SelectItem>
                     {departments.map((dept) => (
                       <SelectItem key={dept.id} value={dept.id}>
                         {dept.name} ({dept.code})
