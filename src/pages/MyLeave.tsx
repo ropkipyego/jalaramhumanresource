@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Progress } from '@/components/ui/progress';
 import {
   Select,
   SelectContent,
@@ -30,7 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Plus, Calendar, Loader2, Trash2 } from 'lucide-react';
+import { Plus, Calendar, Loader2, Trash2, CalendarDays } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import type { LeaveRequest, LeaveType, LeaveStatus } from '@/types/database';
@@ -55,10 +56,17 @@ const getStatusBadgeVariant = (status: LeaveStatus) => {
   return variants[status];
 };
 
+interface LeaveEntitlement {
+  annual_days: number;
+  used_days: number;
+  year: number;
+}
+
 export default function MyLeave() {
   const { user, departments } = useAuth();
   const { toast } = useToast();
   const [requests, setRequests] = useState<LeaveRequest[]>([]);
+  const [entitlement, setEntitlement] = useState<LeaveEntitlement | null>(null);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -73,25 +81,41 @@ export default function MyLeave() {
 
   useEffect(() => {
     if (user) {
-      fetchRequests();
+      fetchData();
     }
   }, [user]);
 
-  const fetchRequests = async () => {
+  const fetchData = async () => {
     if (!user) return;
 
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('leave_requests')
-        .select('*')
-        .eq('employee_id', user.id)
-        .order('created_at', { ascending: false });
+      // Fetch leave requests and entitlement in parallel
+      const [requestsResult, entitlementResult] = await Promise.all([
+        supabase
+          .from('leave_requests')
+          .select('*')
+          .eq('employee_id', user.id)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('leave_entitlements')
+          .select('annual_days, used_days, year')
+          .eq('employee_id', user.id)
+          .eq('year', new Date().getFullYear())
+          .maybeSingle(),
+      ]);
 
-      if (error) {
-        console.error('Error fetching leave requests:', error);
+      if (requestsResult.error) {
+        console.error('Error fetching leave requests:', requestsResult.error);
       } else {
-        setRequests(data as LeaveRequest[]);
+        setRequests(requestsResult.data as LeaveRequest[]);
+      }
+
+      if (entitlementResult.data) {
+        setEntitlement(entitlementResult.data);
+      } else {
+        // Default entitlement if not yet created
+        setEntitlement({ annual_days: 21, used_days: 0, year: new Date().getFullYear() });
       }
     } finally {
       setLoading(false);
@@ -152,7 +176,7 @@ export default function MyLeave() {
         });
         setDialogOpen(false);
         resetForm();
-        fetchRequests();
+        fetchData();
       }
     } finally {
       setSubmitting(false);
@@ -170,10 +194,10 @@ export default function MyLeave() {
       });
     } else {
       toast({
-        title: 'Request Deleted',
-        description: 'Your leave request has been deleted.',
+        title: 'Request Cancelled',
+        description: 'Your leave request has been cancelled.',
       });
-      fetchRequests();
+      fetchData();
     }
   };
 
@@ -183,6 +207,9 @@ export default function MyLeave() {
     setEndDate('');
     setReason('');
   };
+
+  const remainingDays = entitlement ? entitlement.annual_days - entitlement.used_days : 21;
+  const usagePercent = entitlement ? (entitlement.used_days / entitlement.annual_days) * 100 : 0;
 
   return (
     <div className="space-y-6">
@@ -281,6 +308,35 @@ export default function MyLeave() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Leave Balance Card */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <CalendarDays className="h-5 w-5 text-primary" />
+            Leave Balance {new Date().getFullYear()}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-3xl font-bold text-primary">{remainingDays}</p>
+                <p className="text-sm text-muted-foreground">days remaining</p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-muted-foreground">
+                  {entitlement?.used_days || 0} used of {entitlement?.annual_days || 21} days
+                </p>
+              </div>
+            </div>
+            <Progress value={usagePercent} className="h-2" />
+            <p className="text-xs text-muted-foreground">
+              * Maternity leave is not deducted from your annual entitlement
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

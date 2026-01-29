@@ -210,6 +210,44 @@ export type Database = {
           },
         ]
       }
+      leave_entitlements: {
+        Row: {
+          annual_days: number
+          created_at: string
+          employee_id: string
+          id: string
+          updated_at: string
+          used_days: number
+          year: number
+        }
+        Insert: {
+          annual_days?: number
+          created_at?: string
+          employee_id: string
+          id?: string
+          updated_at?: string
+          used_days?: number
+          year?: number
+        }
+        Update: {
+          annual_days?: number
+          created_at?: string
+          employee_id?: string
+          id?: string
+          updated_at?: string
+          used_days?: number
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_entitlements_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leave_requests: {
         Row: {
           admin_notes: string | null
@@ -438,7 +476,29 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calculate_used_leave_days: {
+        Args: { _employee_id: string; _year?: number }
+        Returns: number
+      }
       get_head_departments: { Args: { _user_id: string }; Returns: string[] }
+      get_or_create_leave_entitlement: {
+        Args: { _employee_id: string; _year?: number }
+        Returns: {
+          annual_days: number
+          created_at: string
+          employee_id: string
+          id: string
+          updated_at: string
+          used_days: number
+          year: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "leave_entitlements"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
