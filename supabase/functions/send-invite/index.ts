@@ -127,6 +127,10 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("RESEND_API_KEY not configured");
     }
 
+    // Use verified domain if available, otherwise fall back to resend.dev (test mode)
+    const fromEmail = "Hospital Rota <noreply@jalaram.co.ke>";
+    const fromEmailFallback = "Hospital Rota <onboarding@resend.dev>";
+
     const emailHtml = `
       <!DOCTYPE html>
       <html>
@@ -163,24 +167,51 @@ const handler = async (req: Request): Promise<Response> => {
       </html>
     `;
 
-    const emailResponse = await fetch("https://api.resend.com/emails", {
+    // Try with verified domain first, fall back to test mode
+    let emailResponse = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${resendApiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "Hospital Rota <onboarding@resend.dev>",
+        from: fromEmail,
         to: [email],
         subject: "You've been invited to Hospital Rota Manager",
         html: emailHtml,
       }),
     });
 
+    // If domain not verified, try with test email (only works for account owner's email)
     if (!emailResponse.ok) {
-      const errorText = await emailResponse.text();
-      console.error("Resend error:", errorText);
-      throw new Error("Failed to send invitation email");
+      const errorData = await emailResponse.json();
+      console.log("First attempt failed:", JSON.stringify(errorData));
+      
+      // Check if it's a domain verification error
+      if (errorData.message && errorData.message.includes("verify a domain")) {
+        // Try with fallback sender (only works for account owner email)
+        emailResponse = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${resendApiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            from: fromEmailFallback,
+            to: [email],
+            subject: "You've been invited to Hospital Rota Manager",
+            html: emailHtml,
+          }),
+        });
+        
+        if (!emailResponse.ok) {
+          const fallbackError = await emailResponse.text();
+          console.error("Fallback email failed:", fallbackError);
+          throw new Error("Email sending failed. To send invites to external addresses, please verify your domain at resend.com/domains");
+        }
+      } else {
+        throw new Error(errorData.message || "Failed to send invitation email");
+      }
     }
 
     const emailResult = await emailResponse.json();
