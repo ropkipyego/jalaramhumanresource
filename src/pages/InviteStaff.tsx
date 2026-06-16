@@ -251,14 +251,26 @@ const InviteStaff = () => {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Send className="h-5 w-5" />
-              Send Invitation
+              {mode === "create" ? <UserPlus className="h-5 w-5" /> : <Send className="h-5 w-5" />}
+              Add Staff Member
             </CardTitle>
             <CardDescription>
-              Enter the staff member's details to send them an invitation email
+              Send an invitation email or create the account directly with a password
             </CardDescription>
           </CardHeader>
           <CardContent>
+            <Tabs value={mode} onValueChange={(v) => setMode(v as "invite" | "create")} className="mb-4">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="invite">
+                  <Mail className="mr-2 h-4 w-4" />
+                  Email Invite
+                </TabsTrigger>
+                <TabsTrigger value="create">
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  Create Directly
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email" className="flex items-center gap-2">
@@ -281,7 +293,7 @@ const InviteStaff = () => {
               <div className="space-y-2">
                 <Label htmlFor="fullName" className="flex items-center gap-2">
                   <User className="h-4 w-4" />
-                  Full Name (Optional)
+                  Full Name {mode === "create" ? "" : "(Optional)"}
                 </Label>
                 <Input
                   id="fullName"
@@ -294,6 +306,29 @@ const InviteStaff = () => {
                   <p className="text-sm text-destructive">{errors.fullName}</p>
                 )}
               </div>
+
+              {mode === "create" && (
+                <div className="space-y-2">
+                  <Label htmlFor="password" className="flex items-center gap-2">
+                    <Lock className="h-4 w-4" />
+                    Initial Password *
+                  </Label>
+                  <Input
+                    id="password"
+                    type="text"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="At least 8 characters"
+                    className={errors.password ? "border-destructive" : ""}
+                  />
+                  {errors.password && (
+                    <p className="text-sm text-destructive">{errors.password}</p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Share this password with the staff member. They can change it after logging in.
+                  </p>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="role" className="flex items-center gap-2">
@@ -338,18 +373,19 @@ const InviteStaff = () => {
                 {submitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Sending...
+                    {mode === "create" ? "Creating..." : "Sending..."}
                   </>
                 ) : (
                   <>
-                    <Send className="mr-2 h-4 w-4" />
-                    Send Invitation
+                    {mode === "create" ? <UserPlus className="mr-2 h-4 w-4" /> : <Send className="mr-2 h-4 w-4" />}
+                    {mode === "create" ? "Create Account" : "Send Invitation"}
                   </>
                 )}
               </Button>
             </form>
           </CardContent>
         </Card>
+
 
         {/* Pending Invitations */}
         <Card>
