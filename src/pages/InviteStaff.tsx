@@ -11,7 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Mail, User, Building2, Shield, Trash2, Send, Clock, CheckCircle } from "lucide-react";
+import { Loader2, Mail, User, Building2, Shield, Trash2, Send, Clock, CheckCircle, Lock, UserPlus } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { z } from "zod";
 import { format } from "date-fns";
 import type { Database } from "@/integrations/supabase/types";
@@ -23,6 +24,10 @@ const inviteSchema = z.object({
   fullName: z.string().min(2, "Name must be at least 2 characters").optional().or(z.literal("")),
   role: z.enum(["STAFF", "HEAD", "ADMIN"]),
   departmentId: z.string().optional(),
+});
+
+const createSchema = inviteSchema.extend({
+  password: z.string().min(8, "Password must be at least 8 characters"),
 });
 
 interface Department {
@@ -55,6 +60,8 @@ const InviteStaff = () => {
 
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
+  const [password, setPassword] = useState("");
+  const [mode, setMode] = useState<"invite" | "create">("invite");
   const [selectedRole, setSelectedRole] = useState<"STAFF" | "HEAD" | "ADMIN">("STAFF");
   const [departmentId, setDepartmentId] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -97,12 +104,16 @@ const InviteStaff = () => {
     e.preventDefault();
     setErrors({});
 
-    const result = inviteSchema.safeParse({
+    const schema = mode === "create" ? createSchema : inviteSchema;
+    const payload: any = {
       email,
       fullName: fullName || undefined,
       role: selectedRole,
       departmentId: departmentId || undefined,
-    });
+    };
+    if (mode === "create") payload.password = password;
+
+    const result = schema.safeParse(payload);
 
     if (!result.success) {
       const fieldErrors: Record<string, string> = {};
@@ -118,26 +129,25 @@ const InviteStaff = () => {
     setSubmitting(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke("send-invite", {
-        body: {
-          email,
-          fullName: fullName || undefined,
-          role: selectedRole,
-          departmentId: departmentId || undefined,
-        },
+      const fnName = mode === "create" ? "create-staff-user" : "send-invite";
+      const { data, error } = await supabase.functions.invoke(fnName, {
+        body: payload,
       });
 
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
       toast({
-        title: "Invitation Sent",
-        description: `An invitation email has been sent to ${email}`,
+        title: mode === "create" ? "User Created" : "Invitation Sent",
+        description: mode === "create"
+          ? `${email} can now log in with the password you set`
+          : `An invitation email has been sent to ${email}`,
       });
 
       // Reset form
       setEmail("");
       setFullName("");
+      setPassword("");
       setSelectedRole("STAFF");
       setDepartmentId("");
 
@@ -149,10 +159,10 @@ const InviteStaff = () => {
 
       setInvitations((invites || []) as Invitation[]);
     } catch (error: any) {
-      console.error("Invite error:", error);
+      console.error("Submit error:", error);
       toast({
         title: "Error",
-        description: error.message || "Failed to send invitation",
+        description: error.message || "Failed to process request",
         variant: "destructive",
       });
     } finally {
@@ -241,14 +251,26 @@ const InviteStaff = () => {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Send className="h-5 w-5" />
-              Send Invitation
+              {mode === "create" ? <UserPlus className="h-5 w-5" /> : <Send className="h-5 w-5" />}
+              Add Staff Member
             </CardTitle>
             <CardDescription>
-              Enter the staff member's details to send them an invitation email
+              Send an invitation email or create the account directly with a password
             </CardDescription>
           </CardHeader>
           <CardContent>
+            <Tabs value={mode} onValueChange={(v) => setMode(v as "invite" | "create")} className="mb-4">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="invite">
+                  <Mail className="mr-2 h-4 w-4" />
+                  Email Invite
+                </TabsTrigger>
+                <TabsTrigger value="create">
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  Create Directly
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email" className="flex items-center gap-2">
@@ -271,7 +293,7 @@ const InviteStaff = () => {
               <div className="space-y-2">
                 <Label htmlFor="fullName" className="flex items-center gap-2">
                   <User className="h-4 w-4" />
-                  Full Name (Optional)
+                  Full Name {mode === "create" ? "" : "(Optional)"}
                 </Label>
                 <Input
                   id="fullName"
@@ -284,6 +306,29 @@ const InviteStaff = () => {
                   <p className="text-sm text-destructive">{errors.fullName}</p>
                 )}
               </div>
+
+              {mode === "create" && (
+                <div className="space-y-2">
+                  <Label htmlFor="password" className="flex items-center gap-2">
+                    <Lock className="h-4 w-4" />
+                    Initial Password *
+                  </Label>
+                  <Input
+                    id="password"
+                    type="text"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="At least 8 characters"
+                    className={errors.password ? "border-destructive" : ""}
+                  />
+                  {errors.password && (
+                    <p className="text-sm text-destructive">{errors.password}</p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Share this password with the staff member. They can change it after logging in.
+                  </p>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="role" className="flex items-center gap-2">
@@ -328,18 +373,19 @@ const InviteStaff = () => {
                 {submitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Sending...
+                    {mode === "create" ? "Creating..." : "Sending..."}
                   </>
                 ) : (
                   <>
-                    <Send className="mr-2 h-4 w-4" />
-                    Send Invitation
+                    {mode === "create" ? <UserPlus className="mr-2 h-4 w-4" /> : <Send className="mr-2 h-4 w-4" />}
+                    {mode === "create" ? "Create Account" : "Send Invitation"}
                   </>
                 )}
               </Button>
             </form>
           </CardContent>
         </Card>
+
 
         {/* Pending Invitations */}
         <Card>
