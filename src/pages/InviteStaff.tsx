@@ -104,12 +104,16 @@ const InviteStaff = () => {
     e.preventDefault();
     setErrors({});
 
-    const result = inviteSchema.safeParse({
+    const schema = mode === "create" ? createSchema : inviteSchema;
+    const payload: any = {
       email,
       fullName: fullName || undefined,
       role: selectedRole,
       departmentId: departmentId || undefined,
-    });
+    };
+    if (mode === "create") payload.password = password;
+
+    const result = schema.safeParse(payload);
 
     if (!result.success) {
       const fieldErrors: Record<string, string> = {};
@@ -125,26 +129,25 @@ const InviteStaff = () => {
     setSubmitting(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke("send-invite", {
-        body: {
-          email,
-          fullName: fullName || undefined,
-          role: selectedRole,
-          departmentId: departmentId || undefined,
-        },
+      const fnName = mode === "create" ? "create-staff-user" : "send-invite";
+      const { data, error } = await supabase.functions.invoke(fnName, {
+        body: payload,
       });
 
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
       toast({
-        title: "Invitation Sent",
-        description: `An invitation email has been sent to ${email}`,
+        title: mode === "create" ? "User Created" : "Invitation Sent",
+        description: mode === "create"
+          ? `${email} can now log in with the password you set`
+          : `An invitation email has been sent to ${email}`,
       });
 
       // Reset form
       setEmail("");
       setFullName("");
+      setPassword("");
       setSelectedRole("STAFF");
       setDepartmentId("");
 
@@ -156,10 +159,10 @@ const InviteStaff = () => {
 
       setInvitations((invites || []) as Invitation[]);
     } catch (error: any) {
-      console.error("Invite error:", error);
+      console.error("Submit error:", error);
       toast({
         title: "Error",
-        description: error.message || "Failed to send invitation",
+        description: error.message || "Failed to process request",
         variant: "destructive",
       });
     } finally {
