@@ -11,7 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Mail, User, Building2, Shield, Trash2, Send, Clock, CheckCircle } from "lucide-react";
+import { Loader2, Mail, User, Building2, Shield, Trash2, Send, Clock, CheckCircle, Lock, UserPlus } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { z } from "zod";
 import { format } from "date-fns";
 import type { Database } from "@/integrations/supabase/types";
@@ -23,6 +24,10 @@ const inviteSchema = z.object({
   fullName: z.string().min(2, "Name must be at least 2 characters").optional().or(z.literal("")),
   role: z.enum(["STAFF", "HEAD", "ADMIN"]),
   departmentId: z.string().optional(),
+});
+
+const createSchema = inviteSchema.extend({
+  password: z.string().min(8, "Password must be at least 8 characters"),
 });
 
 interface Department {
