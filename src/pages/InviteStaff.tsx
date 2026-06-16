@@ -60,6 +60,8 @@ const InviteStaff = () => {
 
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
+  const [password, setPassword] = useState("");
+  const [mode, setMode] = useState<"invite" | "create">("invite");
   const [selectedRole, setSelectedRole] = useState<"STAFF" | "HEAD" | "ADMIN">("STAFF");
   const [departmentId, setDepartmentId] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
