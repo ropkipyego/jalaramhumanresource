@@ -103,7 +103,7 @@ export function RotaGrid({
           <table className="w-full border-collapse">
             <thead>
               <tr>
-                <th className="text-left p-2 border-b font-medium text-sm text-muted-foreground min-w-[150px]">
+                <th className="text-left p-3 border-b font-medium text-sm text-muted-foreground min-w-[200px] sticky left-0 bg-card z-10">
                   Staff Member
                 </th>
                 {DAYS.map((day, index) => {
@@ -112,11 +112,11 @@ export function RotaGrid({
                   return (
                     <th
                       key={day}
-                      className={`text-center p-2 border-b font-medium text-sm min-w-[90px] ${
+                      className={`text-center p-3 border-b font-medium text-sm min-w-[120px] ${
                         isToday ? 'bg-accent/50' : ''
                       }`}
                     >
-                      <div className="text-muted-foreground">{day}</div>
+                      <div className="text-muted-foreground text-base">{day}</div>
                       <div className={`text-xs ${isToday ? 'text-primary font-bold' : 'text-muted-foreground'}`}>
                         {format(date, 'd MMM')}
                       </div>
@@ -126,47 +126,57 @@ export function RotaGrid({
               </tr>
             </thead>
             <tbody>
-              {employees.map((employee) => (
-                <tr key={employee.id} className="hover:bg-muted/30">
-                  <td className="p-2 border-b">
-                    <div className="flex items-center gap-2">
-                      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium text-sm">
-                        {employee.full_name
-                          .split(' ')
-                          .map((n) => n[0])
-                          .join('')
-                          .slice(0, 2)
-                          .toUpperCase()}
+              {employees.map((employee) => {
+                const leaveDays = DAYS.map((_, i) => isEmployeeOnLeave(employee.id, i)).filter(Boolean).length;
+                return (
+                  <tr key={employee.id} className="hover:bg-muted/30">
+                    <td className="p-3 border-b sticky left-0 bg-card z-10">
+                      <div className="flex items-center gap-2">
+                        <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium text-sm">
+                          {employee.full_name
+                            .split(' ')
+                            .map((n) => n[0])
+                            .join('')
+                            .slice(0, 2)
+                            .toUpperCase()}
+                        </div>
+                        <div>
+                          <div className="font-medium text-sm">{employee.full_name}</div>
+                          <div className="text-xs text-muted-foreground flex items-center gap-1.5">
+                            <span>{employee.staff_id}</span>
+                            {leaveDays > 0 && (
+                              <Badge variant="outline" className="h-4 px-1.5 text-[10px] border-[hsl(var(--warning))] text-[hsl(var(--warning))]">
+                                On leave {leaveDays}d
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <div className="font-medium text-sm">{employee.full_name}</div>
-                        <div className="text-xs text-muted-foreground">{employee.staff_id}</div>
-                      </div>
-                    </div>
-                  </td>
-                  {DAYS.map((_, dayIndex) => {
-                    const date = addDays(weekStartDate, dayIndex);
-                    const isToday = format(date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
-                    const onLeave = isEmployeeOnLeave(employee.id, dayIndex);
-                    
-                    return (
-                      <td
-                        key={dayIndex}
-                        className={`p-1 border-b ${isToday ? 'bg-accent/30' : ''}`}
-                      >
-                        <ShiftCell
-                          value={getShift(employee.id, dayIndex)}
-                          onChange={(value) => onShiftChange(employee.id, dayIndex, value)}
-                          disabled={!isEditable}
-                          hasError={hasIssue(employee.id, dayIndex, 'blocker')}
-                          hasWarning={hasIssue(employee.id, dayIndex, 'warning')}
-                          isOnLeave={onLeave}
-                        />
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
+                    </td>
+                    {DAYS.map((_, dayIndex) => {
+                      const date = addDays(weekStartDate, dayIndex);
+                      const isToday = format(date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
+                      const onLeave = isEmployeeOnLeave(employee.id, dayIndex);
+
+                      return (
+                        <td
+                          key={dayIndex}
+                          className={`p-2 border-b min-w-[120px] ${isToday ? 'bg-accent/30' : ''}`}
+                        >
+                          <ShiftCell
+                            value={getShift(employee.id, dayIndex)}
+                            onChange={(value) => onShiftChange(employee.id, dayIndex, value)}
+                            disabled={!isEditable}
+                            hasError={hasIssue(employee.id, dayIndex, 'blocker')}
+                            hasWarning={hasIssue(employee.id, dayIndex, 'warning')}
+                            isOnLeave={onLeave}
+                          />
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

@@ -54,16 +54,18 @@ export function ShiftCell({
     return (
       <div
         className={cn(
-          'h-10 flex items-center justify-center rounded-md border bg-muted',
+          'h-12 flex items-center justify-center rounded-md border bg-muted',
           hasError && 'border-destructive bg-destructive/10',
           hasWarning && !hasError && 'border-warning bg-warning/10',
           isOnLeave && 'bg-accent/50'
         )}
       >
         {value ? (
-          <Badge className={cn(getShiftBadgeClass(value), 'px-2 py-0.5 text-xs')}>
+          <Badge className={cn(getShiftBadgeClass(value), 'px-2.5 py-1 text-sm')}>
             {value}
           </Badge>
+        ) : isOnLeave ? (
+          <span className="text-[10px] uppercase tracking-wide text-[hsl(var(--warning))]">Leave</span>
         ) : (
           <span className="text-muted-foreground text-sm">—</span>
         )}
@@ -75,17 +77,19 @@ export function ShiftCell({
     <Select value={value || 'NONE'} onValueChange={handleChange}>
       <SelectTrigger
         className={cn(
-          'h-10 w-full',
+          'h-12 w-full text-base',
           hasError && 'border-destructive bg-destructive/10',
           hasWarning && !hasError && 'border-warning bg-warning/10',
-          isOnLeave && 'bg-accent/50'
+          isOnLeave && 'bg-accent/50 border-[hsl(var(--warning))]'
         )}
       >
         <SelectValue>
           {value ? (
-            <Badge className={cn(getShiftBadgeClass(value), 'px-2 py-0.5 text-xs')}>
+            <Badge className={cn(getShiftBadgeClass(value), 'px-2.5 py-1 text-sm')}>
               {value}
             </Badge>
+          ) : isOnLeave ? (
+            <span className="text-[10px] uppercase tracking-wide text-[hsl(var(--warning))]">On leave</span>
           ) : (
             <span className="text-muted-foreground">—</span>
           )}

@@ -25,6 +25,7 @@ import {
   Home,
   UserCircle,
   UserPlus,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -44,6 +45,7 @@ const mainNavItems: NavItem[] = [
 
 const departmentNavItems: NavItem[] = [
   { title: 'Department Rota', url: '/rota', icon: ClipboardList, roles: ['HEAD', 'ADMIN', 'SUPER_ADMIN'] },
+  { title: 'Upload Rota (Excel)', url: '/rota-upload', icon: FileSpreadsheet, roles: ['HEAD', 'ADMIN', 'SUPER_ADMIN'] },
   { title: 'Leave Admin', url: '/leave-admin', icon: CalendarDays, roles: ['HEAD', 'ADMIN', 'SUPER_ADMIN'] },
   { title: 'Staff Directory', url: '/staff', icon: Users, roles: ['HEAD', 'ADMIN', 'SUPER_ADMIN'] },
   { title: 'Invite Staff', url: '/invite', icon: UserPlus, roles: ['ADMIN', 'SUPER_ADMIN'] },
