@@ -15,6 +15,7 @@ import StaffDirectory from "@/pages/StaffDirectory";
 import LeaveAdmin from "@/pages/LeaveAdmin";
 import InviteStaff from "@/pages/InviteStaff";
 import RotaUpload from "@/pages/RotaUpload";
+import Departments from "@/pages/Departments";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -39,6 +40,7 @@ const App = () => (
               <Route path="staff" element={<StaffDirectory />} />
               <Route path="leave-admin" element={<LeaveAdmin />} />
               <Route path="invite" element={<InviteStaff />} />
+              <Route path="departments" element={<Departments />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

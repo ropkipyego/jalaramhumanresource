@@ -35,7 +35,7 @@ export default function Departments() {
   const [code, setCode] = useState("");
   const [description, setDescription] = useState("");
 
-  const canAccess = role === "ADMIN" || role === "SUPER_ADMIN";
+  const canAccess = role === "SUPER_ADMIN";
 
   useEffect(() => {
     if (!canAccess) {

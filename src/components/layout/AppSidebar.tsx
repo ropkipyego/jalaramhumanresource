@@ -26,6 +26,7 @@ import {
   UserCircle,
   UserPlus,
   FileSpreadsheet,
+  Building2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -52,6 +53,7 @@ const departmentNavItems: NavItem[] = [
 ];
 
 const adminNavItems: NavItem[] = [
+  { title: 'Departments', url: '/departments', icon: Building2, roles: ['SUPER_ADMIN'] },
   { title: 'User Management', url: '/users', icon: Shield, roles: ['SUPER_ADMIN'] },
   { title: 'Department Rules', url: '/rules', icon: Settings, roles: ['SUPER_ADMIN'] },
 ];
