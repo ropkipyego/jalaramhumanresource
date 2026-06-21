@@ -47,11 +47,12 @@ const InviteStaff = () => {
 
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
+  const [staffId, setStaffId] = useState("");
   const [password, setPassword] = useState(randomPassword());
   const [selectedRole, setSelectedRole] = useState<"STAFF" | "HEAD" | "ADMIN">("STAFF");
   const [departmentId, setDepartmentId] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [lastCreated, setLastCreated] = useState<{ email: string; password: string } | null>(null);
+  const [lastCreated, setLastCreated] = useState<{ email: string; password: string; staffId: string } | null>(null);
 
   const canAccess = role === "ADMIN" || role === "SUPER_ADMIN";
 
