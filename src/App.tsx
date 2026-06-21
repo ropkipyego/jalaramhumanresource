@@ -14,6 +14,7 @@ import DepartmentRota from "@/pages/DepartmentRota";
 import StaffDirectory from "@/pages/StaffDirectory";
 import LeaveAdmin from "@/pages/LeaveAdmin";
 import InviteStaff from "@/pages/InviteStaff";
+import BulkStaffUpload from "@/pages/BulkStaffUpload";
 import RotaUpload from "@/pages/RotaUpload";
 import Departments from "@/pages/Departments";
 import NotFound from "./pages/NotFound";
