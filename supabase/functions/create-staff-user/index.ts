@@ -48,13 +48,24 @@ serve(async (req) => {
     if (password.length < 8) throw new Error("Password must be at least 8 characters");
 
     const normEmail = email.toLowerCase().trim();
+    const normStaffId = staffId?.trim() || null;
 
-    // Create auth user with confirmed email
+    // Duplicate checks
+    if (normStaffId) {
+      const { data: existingStaff } = await supabase
+        .from("profiles").select("id").eq("staff_id", normStaffId).maybeSingle();
+      if (existingStaff) throw new Error(`Staff ID "${normStaffId}" is already in use`);
+    }
+    const { data: existingEmail } = await supabase
+      .from("profiles").select("id").eq("email", normEmail).maybeSingle();
+    if (existingEmail) throw new Error(`Email "${normEmail}" is already in use`);
+
+    // Create auth user with confirmed email (pass staff_id so trigger uses it)
     const { data: created, error: createErr } = await supabase.auth.admin.createUser({
       email: normEmail,
       password,
       email_confirm: true,
-      user_metadata: { full_name: fullName },
+      user_metadata: { full_name: fullName, staff_id: normStaffId },
     });
     if (createErr) throw new Error(createErr.message);
 
