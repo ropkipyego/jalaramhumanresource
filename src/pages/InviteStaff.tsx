@@ -18,6 +18,7 @@ const createSchema = z.object({
   email: z.string().email("Invalid email address"),
   fullName: z.string().min(2, "Name must be at least 2 characters"),
   password: z.string().min(8, "Password must be at least 8 characters"),
+  staffId: z.string().trim().min(1, "Staff ID is required").max(50),
   role: z.enum(["STAFF", "HEAD", "ADMIN"]),
   departmentId: z.string().optional(),
 });
