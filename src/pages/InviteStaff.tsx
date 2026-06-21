@@ -157,6 +157,14 @@ const InviteStaff = () => {
                   placeholder="staff@hospital.com" className={errors.email ? "border-destructive" : ""} />
                 {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="staffId" className="flex items-center gap-2"><Shield className="h-4 w-4" />Staff ID *</Label>
+                <Input id="staffId" value={staffId} onChange={(e) => setStaffId(e.target.value)}
+                  placeholder="e.g. EMP-0042" className={errors.staffId ? "border-destructive" : ""} />
+                {errors.staffId && <p className="text-sm text-destructive">{errors.staffId}</p>}
+                <p className="text-xs text-muted-foreground">Used on Excel exports and rota templates.</p>
+              </div>
+
 
               <div className="space-y-2">
                 <Label htmlFor="fullName" className="flex items-center gap-2"><User className="h-4 w-4" />Full Name *</Label>
