@@ -228,6 +228,10 @@ const InviteStaff = () => {
             {lastCreated ? (
               <div className="space-y-3">
                 <div className="rounded-lg border p-3">
+                  <div className="text-xs text-muted-foreground">Staff ID</div>
+                  <div className="font-mono text-sm">{lastCreated.staffId}</div>
+                </div>
+                <div className="rounded-lg border p-3">
                   <div className="text-xs text-muted-foreground">Email</div>
                   <div className="font-mono text-sm">{lastCreated.email}</div>
                 </div>
@@ -236,8 +240,8 @@ const InviteStaff = () => {
                   <div className="font-mono text-sm">{lastCreated.password}</div>
                 </div>
                 <Button variant="outline" size="sm" className="w-full"
-                  onClick={() => navigator.clipboard.writeText(`Email: ${lastCreated.email}\nPassword: ${lastCreated.password}`)}>
-                  Copy Both
+                  onClick={() => navigator.clipboard.writeText(`Staff ID: ${lastCreated.staffId}\nEmail: ${lastCreated.email}\nPassword: ${lastCreated.password}`)}>
+                  Copy All
                 </Button>
               </div>
             ) : (
