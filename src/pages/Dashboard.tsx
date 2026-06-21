@@ -16,7 +16,9 @@ import {
   Clock,
   CheckCircle2,
   AlertTriangle,
+  Bell,
 } from 'lucide-react';
+import { PushToggle } from '@/components/notifications/PushToggle';
 import { startOfWeek, addDays, format } from 'date-fns';
 import type { Database } from '@/integrations/supabase/types';
 
