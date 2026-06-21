@@ -138,6 +138,9 @@ const LeaveAdmin = () => {
       status: LeaveStatus; 
       notes: string;
     }) => {
+      const { data: existing } = await supabase
+        .from("leave_requests").select("employee_id, start_date, end_date").eq("id", requestId).single();
+
       const { error } = await supabase
         .from("leave_requests")
         .update({
@@ -149,6 +152,19 @@ const LeaveAdmin = () => {
         .eq("id", requestId);
       
       if (error) throw error;
+
+      // Fire web push (in-app notification is auto-created by DB trigger)
+      if (existing && (status === "approved" || status === "rejected")) {
+        supabase.functions.invoke("send-push", {
+          body: {
+            userIds: [existing.employee_id],
+            title: status === "approved" ? "Leave Approved" : "Leave Rejected",
+            body: `Your leave from ${existing.start_date} to ${existing.end_date} was ${status}.`,
+            url: "/my-leave",
+            tag: `leave-${requestId}`,
+          },
+        }).catch(() => {});
+      }
     },
     onSuccess: (_, variables) => {
       const actionText = variables.status === "approved" ? "approved" : 
