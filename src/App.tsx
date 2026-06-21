@@ -41,6 +41,7 @@ const App = () => (
               <Route path="staff" element={<StaffDirectory />} />
               <Route path="leave-admin" element={<LeaveAdmin />} />
               <Route path="invite" element={<InviteStaff />} />
+              <Route path="invite/bulk" element={<BulkStaffUpload />} />
               <Route path="departments" element={<Departments />} />
             </Route>
             <Route path="*" element={<NotFound />} />
