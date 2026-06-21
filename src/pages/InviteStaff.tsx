@@ -81,6 +81,7 @@ const InviteStaff = () => {
       email,
       fullName,
       password,
+      staffId,
       role: selectedRole,
       departmentId: departmentId || undefined,
     };
@@ -101,7 +102,7 @@ const InviteStaff = () => {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      setLastCreated({ email, password });
+      setLastCreated({ email, password, staffId });
       toast({
         title: "Account Created",
         description: `${email} can log in now. Share their password securely.`,
@@ -109,6 +110,7 @@ const InviteStaff = () => {
 
       setEmail("");
       setFullName("");
+      setStaffId("");
       setPassword(randomPassword());
       setSelectedRole("STAFF");
       setDepartmentId("");
