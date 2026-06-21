@@ -14,6 +14,7 @@ import DepartmentRota from "@/pages/DepartmentRota";
 import StaffDirectory from "@/pages/StaffDirectory";
 import LeaveAdmin from "@/pages/LeaveAdmin";
 import InviteStaff from "@/pages/InviteStaff";
+import BulkStaffUpload from "@/pages/BulkStaffUpload";
 import RotaUpload from "@/pages/RotaUpload";
 import Departments from "@/pages/Departments";
 import NotFound from "./pages/NotFound";
@@ -40,6 +41,7 @@ const App = () => (
               <Route path="staff" element={<StaffDirectory />} />
               <Route path="leave-admin" element={<LeaveAdmin />} />
               <Route path="invite" element={<InviteStaff />} />
+              <Route path="invite/bulk" element={<BulkStaffUpload />} />
               <Route path="departments" element={<Departments />} />
             </Route>
             <Route path="*" element={<NotFound />} />

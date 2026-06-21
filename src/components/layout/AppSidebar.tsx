@@ -50,6 +50,7 @@ const departmentNavItems: NavItem[] = [
   { title: 'Leave Admin', url: '/leave-admin', icon: CalendarDays, roles: ['HEAD', 'ADMIN', 'SUPER_ADMIN'] },
   { title: 'Staff Directory', url: '/staff', icon: Users, roles: ['HEAD', 'ADMIN', 'SUPER_ADMIN'] },
   { title: 'Invite Staff', url: '/invite', icon: UserPlus, roles: ['ADMIN', 'SUPER_ADMIN'] },
+  { title: 'Bulk Upload Staff', url: '/invite/bulk', icon: FileSpreadsheet, roles: ['ADMIN', 'SUPER_ADMIN'] },
 ];
 
 const adminNavItems: NavItem[] = [

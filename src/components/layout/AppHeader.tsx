@@ -8,14 +8,19 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
 } from '@/components/ui/breadcrumb';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 
 const pageTitles: Record<string, string> = {
   '/dashboard': 'Dashboard',
   '/my-rota': 'My Rota',
   '/my-leave': 'My Leave',
   '/rota': 'Department Rota',
-  '/leave-requests': 'Leave Requests',
+  '/rota-upload': 'Upload Rota',
+  '/leave-admin': 'Leave Requests',
   '/staff': 'Staff Directory',
+  '/invite': 'Invite Staff',
+  '/invite/bulk': 'Bulk Upload Staff',
+  '/departments': 'Departments',
   '/users': 'User Management',
   '/rules': 'Department Rules',
   '/profile': 'Profile',
@@ -29,13 +34,14 @@ export function AppHeader() {
     <header className="flex h-14 shrink-0 items-center gap-2 border-b bg-card px-4">
       <SidebarTrigger className="-ml-1" />
       <Separator orientation="vertical" className="mr-2 h-4" />
-      <Breadcrumb>
+      <Breadcrumb className="flex-1">
         <BreadcrumbList>
           <BreadcrumbItem>
             <BreadcrumbPage className="font-medium">{pageTitle}</BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
+      <NotificationBell />
     </header>
   );
 }

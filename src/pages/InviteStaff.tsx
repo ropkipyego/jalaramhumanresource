@@ -18,6 +18,7 @@ const createSchema = z.object({
   email: z.string().email("Invalid email address"),
   fullName: z.string().min(2, "Name must be at least 2 characters"),
   password: z.string().min(8, "Password must be at least 8 characters"),
+  staffId: z.string().trim().min(1, "Staff ID is required").max(50),
   role: z.enum(["STAFF", "HEAD", "ADMIN"]),
   departmentId: z.string().optional(),
 });
@@ -46,11 +47,12 @@ const InviteStaff = () => {
 
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
+  const [staffId, setStaffId] = useState("");
   const [password, setPassword] = useState(randomPassword());
   const [selectedRole, setSelectedRole] = useState<"STAFF" | "HEAD" | "ADMIN">("STAFF");
   const [departmentId, setDepartmentId] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [lastCreated, setLastCreated] = useState<{ email: string; password: string } | null>(null);
+  const [lastCreated, setLastCreated] = useState<{ email: string; password: string; staffId: string } | null>(null);
 
   const canAccess = role === "ADMIN" || role === "SUPER_ADMIN";
 
@@ -79,6 +81,7 @@ const InviteStaff = () => {
       email,
       fullName,
       password,
+      staffId,
       role: selectedRole,
       departmentId: departmentId || undefined,
     };
@@ -99,7 +102,7 @@ const InviteStaff = () => {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      setLastCreated({ email, password });
+      setLastCreated({ email, password, staffId });
       toast({
         title: "Account Created",
         description: `${email} can log in now. Share their password securely.`,
@@ -107,6 +110,7 @@ const InviteStaff = () => {
 
       setEmail("");
       setFullName("");
+      setStaffId("");
       setPassword(randomPassword());
       setSelectedRole("STAFF");
       setDepartmentId("");
@@ -153,6 +157,14 @@ const InviteStaff = () => {
                   placeholder="staff@hospital.com" className={errors.email ? "border-destructive" : ""} />
                 {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="staffId" className="flex items-center gap-2"><Shield className="h-4 w-4" />Staff ID *</Label>
+                <Input id="staffId" value={staffId} onChange={(e) => setStaffId(e.target.value)}
+                  placeholder="e.g. EMP-0042" className={errors.staffId ? "border-destructive" : ""} />
+                {errors.staffId && <p className="text-sm text-destructive">{errors.staffId}</p>}
+                <p className="text-xs text-muted-foreground">Used on Excel exports and rota templates.</p>
+              </div>
+
 
               <div className="space-y-2">
                 <Label htmlFor="fullName" className="flex items-center gap-2"><User className="h-4 w-4" />Full Name *</Label>
@@ -216,6 +228,10 @@ const InviteStaff = () => {
             {lastCreated ? (
               <div className="space-y-3">
                 <div className="rounded-lg border p-3">
+                  <div className="text-xs text-muted-foreground">Staff ID</div>
+                  <div className="font-mono text-sm">{lastCreated.staffId}</div>
+                </div>
+                <div className="rounded-lg border p-3">
                   <div className="text-xs text-muted-foreground">Email</div>
                   <div className="font-mono text-sm">{lastCreated.email}</div>
                 </div>
@@ -224,8 +240,8 @@ const InviteStaff = () => {
                   <div className="font-mono text-sm">{lastCreated.password}</div>
                 </div>
                 <Button variant="outline" size="sm" className="w-full"
-                  onClick={() => navigator.clipboard.writeText(`Email: ${lastCreated.email}\nPassword: ${lastCreated.password}`)}>
-                  Copy Both
+                  onClick={() => navigator.clipboard.writeText(`Staff ID: ${lastCreated.staffId}\nEmail: ${lastCreated.email}\nPassword: ${lastCreated.password}`)}>
+                  Copy All
                 </Button>
               </div>
             ) : (
