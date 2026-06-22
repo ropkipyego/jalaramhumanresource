@@ -160,7 +160,7 @@ const BulkStaffUpload = () => {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><FileSpreadsheet className="h-5 w-5" />Step 1 — Download Template</CardTitle>
-          <CardDescription>Columns: Staff ID, Full Name, Email, Role (STAFF / HEAD / ADMIN), Department. Password optional — auto-generated if blank.</CardDescription>
+          <CardDescription>Columns: Staff ID, Full Name, Email, Role (STAFF / HEAD / ADMIN), Department. Password optional — auto-generated if blank. Email optional — if blank a login like <code>staffid@jalaramhr.local</code> is created. Unknown departments are auto-created.</CardDescription>
         </CardHeader>
         <CardContent>
           <Button onClick={downloadTemplate} variant="outline"><Download className="h-4 w-4 mr-2" />Download Template</Button>
