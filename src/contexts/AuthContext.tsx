@@ -88,19 +88,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
-        
+
         if (session?.user) {
+          setLoading(true);
           // Defer Supabase calls with setTimeout
           setTimeout(() => {
-            fetchUserData(session.user.id);
+            fetchUserData(session.user.id).finally(() => setLoading(false));
           }, 0);
         } else {
           setProfile(null);
           setRole(null);
           setDepartments([]);
           setHeadDepartments([]);
+          setLoading(false);
         }
-        setLoading(false);
       }
     );
 
@@ -108,11 +109,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      
+
       if (session?.user) {
-        fetchUserData(session.user.id);
+        fetchUserData(session.user.id).finally(() => setLoading(false));
+      } else {
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
