@@ -53,6 +53,8 @@ const BulkStaffUpload = () => {
 
   useEffect(() => {
     if (authLoading) return;
+    // Wait for role to load before deciding access (role loads after auth)
+    if (role === null) return;
     if (!canAccess) {
       navigate("/dashboard");
       return;
@@ -62,7 +64,7 @@ const BulkStaffUpload = () => {
       setDepartments(data || []);
       setLoading(false);
     })();
-  }, [canAccess, authLoading, navigate]);
+  }, [canAccess, authLoading, navigate, role]);
 
   const downloadTemplate = () => {
     const sample = [
