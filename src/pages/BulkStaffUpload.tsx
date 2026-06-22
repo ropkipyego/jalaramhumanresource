@@ -38,6 +38,7 @@ const randomPassword = () => {
 };
 
 const BulkStaffUpload = () => {
+  const navigate = useNavigate();
   const { loading: authLoading } = useAuth();
   const { role } = useRole();
   const { toast } = useToast();
@@ -51,7 +52,7 @@ const BulkStaffUpload = () => {
   const canAccess = role === "ADMIN" || role === "SUPER_ADMIN";
 
   useEffect(() => {
-    if (roleLoading) return;
+    if (authLoading) return;
     if (!canAccess) {
       navigate("/dashboard");
       return;
@@ -61,7 +62,7 @@ const BulkStaffUpload = () => {
       setDepartments(data || []);
       setLoading(false);
     })();
-  }, [canAccess, roleLoading, navigate]);
+  }, [canAccess, authLoading, navigate]);
 
   const downloadTemplate = () => {
     const sample = [
