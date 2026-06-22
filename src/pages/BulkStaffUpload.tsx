@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useRole } from "@/hooks/useRole";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,7 +39,8 @@ const randomPassword = () => {
 
 const BulkStaffUpload = () => {
   const navigate = useNavigate();
-  const { role } = useAuth();
+  const { loading: authLoading } = useAuth();
+  const { role } = useRole();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [departments, setDepartments] = useState<{ name: string; code: string }[]>([]);
@@ -50,6 +52,7 @@ const BulkStaffUpload = () => {
   const canAccess = role === "ADMIN" || role === "SUPER_ADMIN";
 
   useEffect(() => {
+    if (authLoading) return;
     if (!canAccess) {
       navigate("/dashboard");
       return;
@@ -59,7 +62,7 @@ const BulkStaffUpload = () => {
       setDepartments(data || []);
       setLoading(false);
     })();
-  }, [canAccess, navigate]);
+  }, [canAccess, authLoading, navigate]);
 
   const downloadTemplate = () => {
     const sample = [
