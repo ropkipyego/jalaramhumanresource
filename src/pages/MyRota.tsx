@@ -1,13 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRole } from '@/hooks/useRole';
+import { useManageableDepartments } from '@/hooks/useManageableDepartments';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
-  ChevronLeft, ChevronRight, Calendar, Clock, Moon, Sun, Palmtree, PartyPopper, CalendarDays, Users,
+  ChevronLeft, ChevronRight, Calendar, Clock, Moon, Sun, Palmtree, PartyPopper, CalendarDays, Users, Search,
 } from 'lucide-react';
 import {
   format, startOfWeek, addWeeks, subWeeks, addDays, isSameDay,
