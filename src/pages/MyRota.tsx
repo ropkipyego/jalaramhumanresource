@@ -184,15 +184,30 @@ export default function MyRota() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">My Rota</h1>
-          <p className="text-muted-foreground">View your shifts or your whole department</p>
+          <p className="text-muted-foreground">
+            {isAdmin ? 'Browse rotas across every department or your own' : 'View your shifts or your whole department'}
+          </p>
         </div>
-        {primaryDepartment && <Badge variant="outline" className="w-fit">{primaryDepartment.name}</Badge>}
+        <div className="flex flex-wrap items-center gap-2">
+          {browsableDepartments.length > 1 ? (
+            <Select value={selectedDeptId ?? ''} onValueChange={setSelectedDeptId}>
+              <SelectTrigger className="w-[220px]"><SelectValue placeholder="Choose department" /></SelectTrigger>
+              <SelectContent className="bg-popover z-50">
+                {browsableDepartments.map((d) => (
+                  <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : activeDepartment ? (
+            <Badge variant="outline" className="w-fit">{activeDepartment.name}</Badge>
+          ) : null}
+        </div>
       </div>
 
-      {!primaryDepartment ? (
+      {!activeDepartment ? (
         <Card>
           <CardContent className="py-10 text-center">
             <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
@@ -225,6 +240,17 @@ export default function MyRota() {
                   <Button variant="outline" size="icon" onClick={() => navigate('next')}><ChevronRight className="h-4 w-4" /></Button>
                 </div>
               </div>
+              {isAll && (
+                <div className="mt-3 relative max-w-sm">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search staff by name or ID"
+                    value={staffSearch}
+                    onChange={(e) => setStaffSearch(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+              )}
             </CardHeader>
           </Card>
 
@@ -234,12 +260,12 @@ export default function MyRota() {
             <WeekMineView weekStart={currentWeekStart} myShiftForDate={myShiftForDate} />
           ) : viewMode === 'week-all' ? (
             <DeptTableView dates={Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i))}
-              people={people} shiftFor={shiftFor} />
+              people={filteredPeople} shiftFor={shiftFor} />
           ) : viewMode === 'month-mine' ? (
             <MonthMineView month={currentMonth} myShiftForDate={myShiftForDate} />
           ) : (
             <DeptTableView dates={eachDayOfInterval({ start: startOfMonth(currentMonth), end: endOfMonth(currentMonth) })}
-              people={people} shiftFor={shiftFor} compact />
+              people={filteredPeople} shiftFor={shiftFor} compact />
           )}
 
           <Card>
