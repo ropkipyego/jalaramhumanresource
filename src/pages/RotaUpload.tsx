@@ -1,43 +1,47 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import * as XLSX from 'xlsx';
-import { format, startOfWeek, addDays } from 'date-fns';
+import {
+  format, startOfWeek, addDays, startOfMonth, endOfMonth, eachDayOfInterval, differenceInCalendarDays,
+} from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
-import { useRole } from '@/hooks/useRole';
 import { supabase } from '@/integrations/supabase/client';
+import { useManageableDepartments } from '@/hooks/useManageableDepartments';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Upload, Download, FileSpreadsheet, Loader2, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Upload, Download, FileSpreadsheet, Loader2, CheckCircle2, AlertTriangle, CalendarRange } from 'lucide-react';
 import { toast } from 'sonner';
-import type { Department, Profile, ShiftCode } from '@/types/database';
+import type { Profile, ShiftCode } from '@/types/database';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const VALID_CODES: ShiftCode[] = ['D', 'N', 'OFF', 'PH'];
 
+type Mode = 'weekly' | 'monthly';
+
+type ParsedShift = { date: string; shift: ShiftCode };
 type ParsedRow = {
   staffId: string;
   name: string;
   matchedEmployeeId: string | null;
-  shifts: (ShiftCode | null)[]; // 7
+  shifts: ParsedShift[];
+  invalidCount: number;
   error?: string;
 };
 
 export default function RotaUpload() {
-  const { user, departments: userDepartments } = useAuth();
-  const { hasRole, headDepartments } = useRole();
+  const { user } = useAuth();
+  const { departments: manageableDepartments } = useManageableDepartments();
 
-  const manageableDepartments = useMemo<Department[]>(() => {
-    if (hasRole('ADMIN')) return userDepartments.map((d) => d.department);
-    return userDepartments.filter((d) => headDepartments.includes(d.department_id)).map((d) => d.department);
-  }, [userDepartments, headDepartments, hasRole]);
-
+  const [mode, setMode] = useState<Mode>('monthly');
   const [departmentId, setDepartmentId] = useState<string>('');
   const [weekStart, setWeekStart] = useState<string>(format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd'));
+  const [monthStart, setMonthStart] = useState<string>(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
   const [employees, setEmployees] = useState<Profile[]>([]);
   const [parsed, setParsed] = useState<ParsedRow[] | null>(null);
   const [fileName, setFileName] = useState<string>('');
@@ -64,17 +68,28 @@ export default function RotaUpload() {
     })();
   }, [departmentId]);
 
+  const periodDates = useMemo<Date[]>(() => {
+    if (mode === 'weekly') {
+      const ws = new Date(weekStart + 'T00:00:00');
+      return Array.from({ length: 7 }, (_, i) => addDays(ws, i));
+    }
+    const ms = new Date(monthStart + 'T00:00:00');
+    return eachDayOfInterval({ start: startOfMonth(ms), end: endOfMonth(ms) });
+  }, [mode, weekStart, monthStart]);
+
   const downloadTemplate = () => {
     const dept = manageableDepartments.find((d) => d.id === departmentId);
-    const headers = ['Staff ID', 'Full Name', ...DAYS.map((d, i) => `${d} ${format(addDays(new Date(weekStart), i), 'd MMM')}`)];
-    const rows = employees.map((e) => [e.staff_id, e.full_name, '', '', '', '', '', '', '']);
+    const headers = ['Staff ID', 'Full Name', ...periodDates.map((d) => format(d, mode === 'weekly' ? 'EEE d MMM' : 'd MMM'))];
+    const blanks = periodDates.map(() => '');
+    const rows = employees.map((e) => [e.staff_id, e.full_name, ...blanks]);
     const aoa = [headers, ...rows];
     const ws = XLSX.utils.aoa_to_sheet(aoa);
-    ws['!cols'] = [{ wch: 12 }, { wch: 24 }, ...DAYS.map(() => ({ wch: 12 }))];
+    ws['!cols'] = [{ wch: 12 }, { wch: 24 }, ...periodDates.map(() => ({ wch: 10 }))];
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, `Rota ${weekStart}`);
-    XLSX.writeFile(wb, `rota-${dept?.code || 'dept'}-${weekStart}.xlsx`);
-    toast.success('Template downloaded — fill D/N/OFF/PH per cell and re-upload.');
+    const tag = mode === 'weekly' ? weekStart : format(new Date(monthStart + 'T00:00:00'), 'yyyy-MM');
+    XLSX.utils.book_append_sheet(wb, ws, `Rota ${tag}`);
+    XLSX.writeFile(wb, `rota-${dept?.code || 'dept'}-${tag}.xlsx`);
+    toast.success('Template downloaded — fill D / N / OFF / PH per cell and re-upload.');
   };
 
   const normalizeCode = (raw: unknown): ShiftCode | null | 'INVALID' => {
@@ -82,7 +97,6 @@ export default function RotaUpload() {
     const s = String(raw).trim().toUpperCase();
     if (!s || s === '-' || s === '—') return null;
     if (VALID_CODES.includes(s as ShiftCode)) return s as ShiftCode;
-    // friendly aliases
     if (['DAY'].includes(s)) return 'D';
     if (['NIGHT'].includes(s)) return 'N';
     if (['REST', 'O'].includes(s)) return 'OFF';
@@ -110,26 +124,23 @@ export default function RotaUpload() {
       const match = employees.find(
         (e) => e.staff_id.toLowerCase() === staffId.toLowerCase() || e.full_name.toLowerCase() === name.toLowerCase()
       );
-      const shifts: (ShiftCode | null)[] = [];
-      let invalid = false;
-      for (let i = 0; i < 7; i++) {
+      const shifts: ParsedShift[] = [];
+      let invalidCount = 0;
+      periodDates.forEach((d, i) => {
         const code = normalizeCode(row[2 + i]);
-        if (code === 'INVALID') {
-          invalid = true;
-          shifts.push(null);
-        } else {
-          shifts.push(code);
-        }
-      }
+        if (code === 'INVALID') invalidCount++;
+        else if (code) shifts.push({ date: format(d, 'yyyy-MM-dd'), shift: code });
+      });
       out.push({
         staffId,
         name,
         matchedEmployeeId: match?.id || null,
         shifts,
+        invalidCount,
         error: !match
           ? `No matching staff in this department`
-          : invalid
-          ? 'Invalid shift code(s) — use D, N, OFF, PH'
+          : invalidCount
+          ? `${invalidCount} invalid shift code(s) — use D, N, OFF, PH`
           : undefined,
       });
     }
@@ -142,60 +153,83 @@ export default function RotaUpload() {
   const validRows = useMemo(() => (parsed || []).filter((r) => r.matchedEmployeeId && !r.error), [parsed]);
   const hasErrors = useMemo(() => (parsed || []).some((r) => r.error), [parsed]);
 
+  /** Group shifts by Monday-anchored ISO week. */
+  const groupByWeek = (rows: ParsedRow[]) => {
+    const byWeek = new Map<string, Array<{ employee_id: string; day_of_week: number; shift_code: ShiftCode }>>();
+    for (const r of rows) {
+      for (const s of r.shifts) {
+        const d = new Date(s.date + 'T00:00:00');
+        const monday = startOfWeek(d, { weekStartsOn: 1 });
+        const wk = format(monday, 'yyyy-MM-dd');
+        const dow = differenceInCalendarDays(d, monday); // 0..6
+        if (!byWeek.has(wk)) byWeek.set(wk, []);
+        byWeek.get(wk)!.push({
+          employee_id: r.matchedEmployeeId!,
+          day_of_week: dow,
+          shift_code: s.shift,
+        });
+      }
+    }
+    return byWeek;
+  };
+
   const persist = async (publish: boolean) => {
     if (!user || !departmentId || validRows.length === 0) return;
     publish ? setPublishing(true) : setSaving(true);
     try {
-      // upsert rota_week
-      let weekId: string | null = null;
-      const { data: existing } = await supabase
-        .from('rota_weeks')
-        .select('id, status')
-        .eq('department_id', departmentId)
-        .eq('week_start_date', weekStart)
-        .maybeSingle();
+      const byWeek = groupByWeek(validRows);
+      let totalShifts = 0;
+      let weeksTouched = 0;
 
-      if (existing) {
-        if (existing.status === 'published' && !publish) {
-          toast.error('This week is already published. Save as Draft is disabled.');
-          return;
+      for (const [wkStart, inserts] of byWeek) {
+        // upsert rota_week
+        let weekId: string | null = null;
+        const { data: existing } = await supabase
+          .from('rota_weeks')
+          .select('id, status')
+          .eq('department_id', departmentId)
+          .eq('week_start_date', wkStart)
+          .maybeSingle();
+
+        if (existing) {
+          if (existing.status === 'published' && !publish) {
+            toast.warning(`Week ${wkStart} already published — skipped (use Save & Publish to overwrite).`);
+            continue;
+          }
+          weekId = existing.id;
+        } else {
+          const { data: created, error } = await supabase
+            .from('rota_weeks')
+            .insert({ department_id: departmentId, week_start_date: wkStart, status: 'draft' })
+            .select()
+            .single();
+          if (error) throw error;
+          weekId = created.id;
         }
-        weekId = existing.id;
-      } else {
-        const { data: created, error } = await supabase
-          .from('rota_weeks')
-          .insert({ department_id: departmentId, week_start_date: weekStart, status: 'draft' })
-          .select()
-          .single();
-        if (error) throw error;
-        weekId = created.id;
+
+        await supabase.from('rota_assignments').delete().eq('rota_week_id', weekId!);
+        if (inserts.length > 0) {
+          const payload = inserts.map((i) => ({ ...i, rota_week_id: weekId! }));
+          const { error } = await supabase.from('rota_assignments').insert(payload);
+          if (error) throw error;
+          totalShifts += inserts.length;
+        }
+
+        if (publish) {
+          const { error } = await supabase
+            .from('rota_weeks')
+            .update({ status: 'published', published_at: new Date().toISOString(), published_by: user.id })
+            .eq('id', weekId!);
+          if (error) throw error;
+        }
+        weeksTouched++;
       }
 
-      // wipe existing assignments
-      await supabase.from('rota_assignments').delete().eq('rota_week_id', weekId!);
-
-      const inserts: Array<{ rota_week_id: string; employee_id: string; day_of_week: number; shift_code: ShiftCode }> = [];
-      for (const r of validRows) {
-        r.shifts.forEach((s, i) => {
-          if (s) inserts.push({ rota_week_id: weekId!, employee_id: r.matchedEmployeeId!, day_of_week: i, shift_code: s });
-        });
-      }
-      if (inserts.length > 0) {
-        const { error } = await supabase.from('rota_assignments').insert(inserts);
-        if (error) throw error;
-      }
-
-      if (publish) {
-        const { error } = await supabase
-          .from('rota_weeks')
-          .update({ status: 'published', published_at: new Date().toISOString(), published_by: user.id })
-          .eq('id', weekId!);
-        if (error) throw error;
-        toast.success(`Published rota with ${inserts.length} shifts.`);
-      } else {
-        toast.success(`Saved draft with ${inserts.length} shifts.`);
-      }
-
+      toast.success(
+        publish
+          ? `Published ${totalShifts} shifts across ${weeksTouched} week(s).`
+          : `Saved ${totalShifts} shifts as draft across ${weeksTouched} week(s).`
+      );
       setParsed(null);
       setFileName('');
     } catch (err: any) {
@@ -221,17 +255,37 @@ export default function RotaUpload() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Upload Rota from Excel</h1>
-        <p className="text-muted-foreground">
-          Download the template, fill shifts (D, N, OFF, PH) per staff per day, then upload.
-        </p>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Upload Rota from Excel</h1>
+          <p className="text-muted-foreground">
+            Download the template, fill shifts (D, N, OFF, PH) per staff per day, then upload.
+          </p>
+        </div>
+        <div className="flex items-center gap-3 rounded-lg border bg-card px-4 py-2">
+          <CalendarRange className="h-4 w-4 text-muted-foreground" />
+          <Label htmlFor="mode-toggle" className="cursor-pointer text-sm">
+            {mode === 'monthly' ? 'Monthly' : 'Weekly'} mode
+          </Label>
+          <Switch
+            id="mode-toggle"
+            checked={mode === 'monthly'}
+            onCheckedChange={(v) => {
+              setMode(v ? 'monthly' : 'weekly');
+              setParsed(null);
+            }}
+          />
+        </div>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">1. Choose department & week</CardTitle>
-          <CardDescription>The template is built from staff currently assigned to this department.</CardDescription>
+          <CardTitle className="text-lg">1. Choose department & period</CardTitle>
+          <CardDescription>
+            {mode === 'monthly'
+              ? 'The template covers the whole month — we auto-split it into weeks on save.'
+              : 'The template covers a single Monday-anchored week.'}
+          </CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-2">
@@ -245,18 +299,31 @@ export default function RotaUpload() {
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-2">
-            <Label>Week starting (Monday)</Label>
-            <Input
-              type="date"
-              value={weekStart}
-              onChange={(e) => {
-                const d = new Date(e.target.value);
-                const monday = startOfWeek(d, { weekStartsOn: 1 });
-                setWeekStart(format(monday, 'yyyy-MM-dd'));
-              }}
-            />
-          </div>
+          {mode === 'weekly' ? (
+            <div className="space-y-2">
+              <Label>Week starting (Monday)</Label>
+              <Input
+                type="date"
+                value={weekStart}
+                onChange={(e) => {
+                  const d = new Date(e.target.value);
+                  setWeekStart(format(startOfWeek(d, { weekStartsOn: 1 }), 'yyyy-MM-dd'));
+                }}
+              />
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Label>Month</Label>
+              <Input
+                type="month"
+                value={format(new Date(monthStart + 'T00:00:00'), 'yyyy-MM')}
+                onChange={(e) => {
+                  const [y, m] = e.target.value.split('-').map(Number);
+                  setMonthStart(format(startOfMonth(new Date(y, (m || 1) - 1, 1)), 'yyyy-MM-dd'));
+                }}
+              />
+            </div>
+          )}
           <div className="flex items-end">
             <Button onClick={downloadTemplate} variant="outline" className="w-full gap-2" disabled={!departmentId || employees.length === 0}>
               <Download className="h-4 w-4" /> Download template
@@ -268,7 +335,7 @@ export default function RotaUpload() {
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">2. Upload filled Excel</CardTitle>
-          <CardDescription>Accepted shift codes: D (Day), N (Night), OFF, PH (Public Holiday). Empty cells = no shift.</CardDescription>
+          <CardDescription>Accepted codes: D (Day), N (Night), OFF, PH (Public Holiday). Empty cells = no shift.</CardDescription>
         </CardHeader>
         <CardContent>
           <label className="flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-8 cursor-pointer hover:bg-muted/50 transition">
@@ -295,7 +362,7 @@ export default function RotaUpload() {
               <div>
                 <CardTitle className="text-lg">3. Preview & save</CardTitle>
                 <CardDescription>
-                  {validRows.length} of {parsed.length} rows ready to import.
+                  {validRows.length} of {parsed.length} rows ready · {periodDates.length} days
                 </CardDescription>
               </div>
               <div className="flex gap-2">
@@ -322,23 +389,21 @@ export default function RotaUpload() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Staff</TableHead>
-                    {DAYS.map((d) => <TableHead key={d} className="text-center">{d}</TableHead>)}
+                    <TableHead className="sticky left-0 bg-card">Staff</TableHead>
+                    <TableHead className="text-center">Shifts</TableHead>
                     <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {parsed.map((r, i) => (
                     <TableRow key={i} className={r.error ? 'bg-destructive/5' : ''}>
-                      <TableCell>
+                      <TableCell className="sticky left-0 bg-card">
                         <div className="font-medium text-sm">{r.name || '—'}</div>
                         <div className="text-xs text-muted-foreground">{r.staffId}</div>
                       </TableCell>
-                      {r.shifts.map((s, idx) => (
-                        <TableCell key={idx} className="text-center">
-                          {s ? <Badge variant="outline">{s}</Badge> : <span className="text-muted-foreground">—</span>}
-                        </TableCell>
-                      ))}
+                      <TableCell className="text-center">
+                        <Badge variant="outline">{r.shifts.length} shift{r.shifts.length === 1 ? '' : 's'}</Badge>
+                      </TableCell>
                       <TableCell>
                         {r.error ? (
                           <span className="text-xs text-destructive">{r.error}</span>
