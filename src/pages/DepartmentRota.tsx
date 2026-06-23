@@ -12,6 +12,7 @@ import { DepartmentSelector } from '@/components/rota/DepartmentSelector';
 import { RotaGrid } from '@/components/rota/RotaGrid';
 import { ValidationPanel } from '@/components/rota/ValidationPanel';
 import { useRotaValidation } from '@/hooks/useRotaValidation';
+import { useManageableDepartments } from '@/hooks/useManageableDepartments';
 
 import type {
   Department,
