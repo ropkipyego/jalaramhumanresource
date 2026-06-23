@@ -24,18 +24,9 @@ import type {
 } from '@/types/database';
 
 export default function DepartmentRota() {
-  const { user, departments: userDepartments } = useAuth();
-  const { hasRole, headDepartments } = useRole();
-
-  // Departments user can manage
-  const manageableDepartments = useMemo(() => {
-    if (hasRole('ADMIN')) {
-      return userDepartments.map((d) => d.department);
-    }
-    return userDepartments
-      .filter((d) => headDepartments.includes(d.department_id))
-      .map((d) => d.department);
-  }, [userDepartments, headDepartments, hasRole]);
+  const { user } = useAuth();
+  const { hasRole } = useRole();
+  const { departments: manageableDepartments } = useManageableDepartments();
 
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<string | null>(null);
   const [currentWeekStart, setCurrentWeekStart] = useState(() =>
