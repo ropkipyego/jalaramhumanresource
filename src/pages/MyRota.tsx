@@ -1,13 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRole } from '@/hooks/useRole';
+import { useManageableDepartments } from '@/hooks/useManageableDepartments';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
-  ChevronLeft, ChevronRight, Calendar, Clock, Moon, Sun, Palmtree, PartyPopper, CalendarDays, Users,
+  ChevronLeft, ChevronRight, Calendar, Clock, Moon, Sun, Palmtree, PartyPopper, CalendarDays, Users, Search,
 } from 'lucide-react';
 import {
   format, startOfWeek, addWeeks, subWeeks, addDays, isSameDay,
@@ -45,24 +49,45 @@ interface ShiftCell {
 
 export default function MyRota() {
   const { user, departments } = useAuth();
+  const { hasRole } = useRole();
+  const { departments: allManageableDepts } = useManageableDepartments();
+  const isAdmin = hasRole('ADMIN');
+
   const [viewMode, setViewMode] = useState<ViewMode>('week-mine');
   const [currentWeekStart, setCurrentWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()));
   const [shifts, setShifts] = useState<ShiftCell[]>([]);
   const [people, setPeople] = useState<Array<{ id: string; full_name: string; staff_id: string }>>([]);
   const [loading, setLoading] = useState(true);
+  const [staffSearch, setStaffSearch] = useState('');
+  const [selectedDeptId, setSelectedDeptId] = useState<string | null>(null);
 
-  const primaryDepartment = departments.find((d) => d.is_primary)?.department;
+  // Departments the user can browse rotas for.
+  // Admins: every active department. Others: their own assigned departments.
+  const browsableDepartments = useMemo(() => {
+    if (isAdmin && allManageableDepts.length > 0) return allManageableDepts;
+    return departments.map((d) => d.department);
+  }, [isAdmin, allManageableDepts, departments]);
+
+  // Initial / fallback selected department
+  useEffect(() => {
+    if (selectedDeptId) return;
+    const fallback =
+      departments.find((d) => d.is_primary)?.department ?? browsableDepartments[0] ?? null;
+    if (fallback) setSelectedDeptId(fallback.id);
+  }, [browsableDepartments, departments, selectedDeptId]);
+
+  const activeDepartment = browsableDepartments.find((d) => d.id === selectedDeptId) || null;
   const isMonth = viewMode.startsWith('month');
   const isAll = viewMode.endsWith('all');
 
   useEffect(() => {
-    if (user && primaryDepartment) fetchData();
+    if (user && activeDepartment) fetchData();
     else setLoading(false);
-  }, [user, primaryDepartment, currentWeekStart, currentMonth, viewMode]);
+  }, [user, activeDepartment?.id, currentWeekStart, currentMonth, viewMode]);
 
   const fetchData = async () => {
-    if (!user || !primaryDepartment) return;
+    if (!user || !activeDepartment) return;
     setLoading(true);
     try {
       const rangeStart = isMonth ? startOfMonth(currentMonth) : currentWeekStart;
@@ -71,7 +96,7 @@ export default function MyRota() {
       const { data: weeks } = await supabase
         .from('rota_weeks')
         .select('id, week_start_date')
-        .eq('department_id', primaryDepartment.id)
+        .eq('department_id', activeDepartment.id)
         .gte('week_start_date', format(addDays(rangeStart, -7), 'yyyy-MM-dd'))
         .lte('week_start_date', format(rangeEnd, 'yyyy-MM-dd'));
 
@@ -85,7 +110,9 @@ export default function MyRota() {
         .select('employee_id, day_of_week, shift_code, rota_week_id')
         .in('rota_week_id', weekIds);
 
-      if (!isAll) assignmentsQuery = assignmentsQuery.eq('employee_id', user.id);
+      // "Mine" view only filters to the current user when they're actually a member of this dept.
+      const viewingOwnDept = departments.some((d) => d.department_id === activeDepartment.id);
+      if (!isAll && viewingOwnDept) assignmentsQuery = assignmentsQuery.eq('employee_id', user.id);
 
       const { data: assignments } = await assignmentsQuery;
       const weekMap = new Map((weeks || []).map((w) => [w.id, w.week_start_date]));
@@ -101,16 +128,14 @@ export default function MyRota() {
 
       setShifts(cells);
 
-      if (isAll) {
-        const empIds = Array.from(new Set(cells.map((c) => c.employee_id)));
+      if (isAll || !viewingOwnDept) {
         const { data: deptEmps } = await supabase
           .from('employee_departments')
-          .select('employee_id, profiles:employee_id(id, full_name, staff_id)')
-          .eq('department_id', primaryDepartment.id);
+          .select('employee_id, profiles:employee_id(id, full_name, staff_id, is_active)')
+          .eq('department_id', activeDepartment.id);
         const list = (deptEmps || [])
           .map((d: any) => d.profiles)
-          .filter(Boolean)
-          .filter((p: any) => empIds.length === 0 || empIds.includes(p.id));
+          .filter((p: any) => p && p.is_active);
         setPeople(list);
       } else {
         setPeople([]);
@@ -119,6 +144,16 @@ export default function MyRota() {
       setLoading(false);
     }
   };
+
+  const filteredPeople = useMemo(() => {
+    const q = staffSearch.trim().toLowerCase();
+    if (!q) return people;
+    return people.filter(
+      (p) =>
+        p.full_name.toLowerCase().includes(q) ||
+        p.staff_id.toLowerCase().includes(q),
+    );
+  }, [people, staffSearch]);
 
   const navigate = (direction: 'prev' | 'next') => {
     if (isMonth) {
@@ -149,15 +184,30 @@ export default function MyRota() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">My Rota</h1>
-          <p className="text-muted-foreground">View your shifts or your whole department</p>
+          <p className="text-muted-foreground">
+            {isAdmin ? 'Browse rotas across every department or your own' : 'View your shifts or your whole department'}
+          </p>
         </div>
-        {primaryDepartment && <Badge variant="outline" className="w-fit">{primaryDepartment.name}</Badge>}
+        <div className="flex flex-wrap items-center gap-2">
+          {browsableDepartments.length > 1 ? (
+            <Select value={selectedDeptId ?? ''} onValueChange={setSelectedDeptId}>
+              <SelectTrigger className="w-[220px]"><SelectValue placeholder="Choose department" /></SelectTrigger>
+              <SelectContent className="bg-popover z-50">
+                {browsableDepartments.map((d) => (
+                  <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : activeDepartment ? (
+            <Badge variant="outline" className="w-fit">{activeDepartment.name}</Badge>
+          ) : null}
+        </div>
       </div>
 
-      {!primaryDepartment ? (
+      {!activeDepartment ? (
         <Card>
           <CardContent className="py-10 text-center">
             <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
@@ -190,6 +240,17 @@ export default function MyRota() {
                   <Button variant="outline" size="icon" onClick={() => navigate('next')}><ChevronRight className="h-4 w-4" /></Button>
                 </div>
               </div>
+              {isAll && (
+                <div className="mt-3 relative max-w-sm">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search staff by name or ID"
+                    value={staffSearch}
+                    onChange={(e) => setStaffSearch(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+              )}
             </CardHeader>
           </Card>
 
@@ -199,12 +260,12 @@ export default function MyRota() {
             <WeekMineView weekStart={currentWeekStart} myShiftForDate={myShiftForDate} />
           ) : viewMode === 'week-all' ? (
             <DeptTableView dates={Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i))}
-              people={people} shiftFor={shiftFor} />
+              people={filteredPeople} shiftFor={shiftFor} />
           ) : viewMode === 'month-mine' ? (
             <MonthMineView month={currentMonth} myShiftForDate={myShiftForDate} />
           ) : (
             <DeptTableView dates={eachDayOfInterval({ start: startOfMonth(currentMonth), end: endOfMonth(currentMonth) })}
-              people={people} shiftFor={shiftFor} compact />
+              people={filteredPeople} shiftFor={shiftFor} compact />
           )}
 
           <Card>
