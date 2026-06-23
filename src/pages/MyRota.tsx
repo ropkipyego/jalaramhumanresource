@@ -49,24 +49,45 @@ interface ShiftCell {
 
 export default function MyRota() {
   const { user, departments } = useAuth();
+  const { hasRole } = useRole();
+  const { departments: allManageableDepts } = useManageableDepartments();
+  const isAdmin = hasRole('ADMIN');
+
   const [viewMode, setViewMode] = useState<ViewMode>('week-mine');
   const [currentWeekStart, setCurrentWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()));
   const [shifts, setShifts] = useState<ShiftCell[]>([]);
   const [people, setPeople] = useState<Array<{ id: string; full_name: string; staff_id: string }>>([]);
   const [loading, setLoading] = useState(true);
+  const [staffSearch, setStaffSearch] = useState('');
+  const [selectedDeptId, setSelectedDeptId] = useState<string | null>(null);
 
-  const primaryDepartment = departments.find((d) => d.is_primary)?.department;
+  // Departments the user can browse rotas for.
+  // Admins: every active department. Others: their own assigned departments.
+  const browsableDepartments = useMemo(() => {
+    if (isAdmin && allManageableDepts.length > 0) return allManageableDepts;
+    return departments.map((d) => d.department);
+  }, [isAdmin, allManageableDepts, departments]);
+
+  // Initial / fallback selected department
+  useEffect(() => {
+    if (selectedDeptId) return;
+    const fallback =
+      departments.find((d) => d.is_primary)?.department ?? browsableDepartments[0] ?? null;
+    if (fallback) setSelectedDeptId(fallback.id);
+  }, [browsableDepartments, departments, selectedDeptId]);
+
+  const activeDepartment = browsableDepartments.find((d) => d.id === selectedDeptId) || null;
   const isMonth = viewMode.startsWith('month');
   const isAll = viewMode.endsWith('all');
 
   useEffect(() => {
-    if (user && primaryDepartment) fetchData();
+    if (user && activeDepartment) fetchData();
     else setLoading(false);
-  }, [user, primaryDepartment, currentWeekStart, currentMonth, viewMode]);
+  }, [user, activeDepartment?.id, currentWeekStart, currentMonth, viewMode]);
 
   const fetchData = async () => {
-    if (!user || !primaryDepartment) return;
+    if (!user || !activeDepartment) return;
     setLoading(true);
     try {
       const rangeStart = isMonth ? startOfMonth(currentMonth) : currentWeekStart;
@@ -75,7 +96,7 @@ export default function MyRota() {
       const { data: weeks } = await supabase
         .from('rota_weeks')
         .select('id, week_start_date')
-        .eq('department_id', primaryDepartment.id)
+        .eq('department_id', activeDepartment.id)
         .gte('week_start_date', format(addDays(rangeStart, -7), 'yyyy-MM-dd'))
         .lte('week_start_date', format(rangeEnd, 'yyyy-MM-dd'));
 
@@ -89,7 +110,9 @@ export default function MyRota() {
         .select('employee_id, day_of_week, shift_code, rota_week_id')
         .in('rota_week_id', weekIds);
 
-      if (!isAll) assignmentsQuery = assignmentsQuery.eq('employee_id', user.id);
+      // "Mine" view only filters to the current user when they're actually a member of this dept.
+      const viewingOwnDept = departments.some((d) => d.department_id === activeDepartment.id);
+      if (!isAll && viewingOwnDept) assignmentsQuery = assignmentsQuery.eq('employee_id', user.id);
 
       const { data: assignments } = await assignmentsQuery;
       const weekMap = new Map((weeks || []).map((w) => [w.id, w.week_start_date]));
@@ -105,16 +128,14 @@ export default function MyRota() {
 
       setShifts(cells);
 
-      if (isAll) {
-        const empIds = Array.from(new Set(cells.map((c) => c.employee_id)));
+      if (isAll || !viewingOwnDept) {
         const { data: deptEmps } = await supabase
           .from('employee_departments')
-          .select('employee_id, profiles:employee_id(id, full_name, staff_id)')
-          .eq('department_id', primaryDepartment.id);
+          .select('employee_id, profiles:employee_id(id, full_name, staff_id, is_active)')
+          .eq('department_id', activeDepartment.id);
         const list = (deptEmps || [])
           .map((d: any) => d.profiles)
-          .filter(Boolean)
-          .filter((p: any) => empIds.length === 0 || empIds.includes(p.id));
+          .filter((p: any) => p && p.is_active);
         setPeople(list);
       } else {
         setPeople([]);
@@ -123,6 +144,16 @@ export default function MyRota() {
       setLoading(false);
     }
   };
+
+  const filteredPeople = useMemo(() => {
+    const q = staffSearch.trim().toLowerCase();
+    if (!q) return people;
+    return people.filter(
+      (p) =>
+        p.full_name.toLowerCase().includes(q) ||
+        p.staff_id.toLowerCase().includes(q),
+    );
+  }, [people, staffSearch]);
 
   const navigate = (direction: 'prev' | 'next') => {
     if (isMonth) {
