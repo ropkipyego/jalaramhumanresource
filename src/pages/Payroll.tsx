@@ -146,7 +146,7 @@ export default function Payroll() {
                     <TableCell>
                       <Badge className={STATUS_STYLES[p.status]}>
                         {p.status === 'LOCKED' && <Lock className="mr-1 h-3 w-3" />}
-                        {p.status.replaceAll('_', ' ')}
+                        {p.status.replace(/_/g, ' ')}
                       </Badge>
                     </TableCell>
                     <TableCell>{new Date(p.created_at).toLocaleDateString()}</TableCell>
