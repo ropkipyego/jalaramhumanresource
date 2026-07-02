@@ -17,6 +17,10 @@ import InviteStaff from "@/pages/InviteStaff";
 import BulkStaffUpload from "@/pages/BulkStaffUpload";
 import RotaUpload from "@/pages/RotaUpload";
 import Departments from "@/pages/Departments";
+import Payroll from "@/pages/Payroll";
+import PayrollPeriod from "@/pages/PayrollPeriod";
+import StatutorySettings from "@/pages/StatutorySettings";
+import StaffCompliance from "@/pages/StaffCompliance";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
