@@ -11,12 +11,40 @@ A medical-grade staff rota and leave management platform built on Lovable Cloud.
 
 | Role | What they can do |
 | --- | --- |
-| **STAFF** | View their own rota, request leave, enable push notifications. |
+| **STAFF** | View their own rota & payslips, request leave, enable push notifications. |
 | **HEAD** | Everything STAFF can do + manage rotas, approve leave, view directory for departments they lead. |
-| **ADMIN** | Everything HEAD can do, across **every department** — browse all rotas, search any staff member, invite users, bulk-upload staff, upload monthly rotas. |
-| **SUPER_ADMIN** | Full ADMIN rights + departments, rules, and user management. |
+| **ADMIN** | Everything HEAD can do, across **every department** — browse all rotas, search any staff member, invite users, bulk-upload staff, upload monthly rotas, open Payroll & Staff Compliance. |
+| **FINANCE_ADMIN** | Read all payroll data, approve payroll runs (Phase 2), export bank files (Phase 2). Cannot manage rotas or users. |
+| **SUPER_ADMIN** | Full ADMIN rights + departments, rules, user management, statutory rate editing, and final payroll LOCK. |
 
 Role assignments live in `public.user_roles` and are checked via the `has_role` / `has_any_role` security-definer functions. RLS on `rota_weeks` and `rota_assignments` already allows ADMIN/SUPER_ADMIN to read & write any department.
+
+---
+
+## Payroll (Phase 1 — foundation)
+
+Kenya-compliant HR + Payroll skeleton, engine ships in Phase 2.
+
+**What's live now (Phase 1):**
+- Employee compliance fields on `profiles`: `national_id`, `kra_pin` (unique), `nssf_number`, `shif_number`, `designation`, `employment_type` (PERMANENT/CONTRACT/LOCUM/INTERN), `date_joined`, `contract_end_date`, `basic_salary`, `hr_status`, `practicing_license_no`, `license_expiry_date`, next of kin.
+- New `FINANCE_ADMIN` role.
+- Versioned `statutory_rates` seeded with 2024/2025 Kenya defaults: PAYE bands (Finance Act 2023), personal relief KES 2,400, NSSF Tier I & II, SHIF 2.75%, Housing Levy 1.5%. Editable by SUPER_ADMIN only, every change audited.
+- `payroll_periods` with full workflow: `DRAFT → ATTENDANCE_LOCKED → CALCULATED → HR_REVIEWED → FINANCE_APPROVED → LOCKED`.
+- Segregation of duties enforced in SQL trigger `enforce_payroll_sod`: HR reviewer cannot also approve as Finance; only FINANCE_ADMIN can approve; only SUPER_ADMIN can LOCK; once LOCKED the period is immutable.
+- Append-only `payroll_audit` log for every payroll change, salary edit, statutory rate change and role assignment (update/delete blocked by trigger).
+- Pages: `/payroll`, `/payroll/:id`, `/payroll/settings`, `/staff/compliance`.
+
+**Coming in Phase 2:**
+- Calculation engine (PAYE/NSSF/SHIF/Housing Levy), shift/overtime allowances derived from published rotas.
+- Payslip PDF generation, bank export CSV, statutory reports (KRA P10, NSSF, SHIF).
+- Clock In/Out module (optional).
+
+**Prep before Phase 2 go-live:**
+1. Assign FINANCE_ADMIN to your finance person via Staff Directory.
+2. Fill KRA PIN + basic salary for every staff at `/staff/compliance` — employees missing either are excluded from payroll runs.
+3. Review seeded statutory rates at `/payroll/settings` with your Finance team.
+
+---
 
 ---
 

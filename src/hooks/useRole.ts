@@ -10,6 +10,7 @@ export function useRole() {
     const roleHierarchy: Record<AppRole, number> = {
       STAFF: 1,
       HEAD: 2,
+      FINANCE_ADMIN: 3,
       ADMIN: 3,
       SUPER_ADMIN: 4,
     };
@@ -48,6 +49,8 @@ export function useRole() {
     isHead: role === 'HEAD',
     isAdmin: role === 'ADMIN',
     isSuperAdmin: role === 'SUPER_ADMIN',
+    isFinanceAdmin: role === 'FINANCE_ADMIN',
+    canViewPayroll: role === 'ADMIN' || role === 'SUPER_ADMIN' || role === 'FINANCE_ADMIN',
     headDepartments,
   };
 }

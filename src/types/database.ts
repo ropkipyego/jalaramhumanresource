@@ -1,7 +1,15 @@
 // Custom types for the Hospital Rota Manager
 // These complement the auto-generated Supabase types
 
-export type AppRole = 'STAFF' | 'HEAD' | 'ADMIN' | 'SUPER_ADMIN';
+export type AppRole = 'STAFF' | 'HEAD' | 'ADMIN' | 'SUPER_ADMIN' | 'FINANCE_ADMIN';
+
+export type EmploymentType = 'PERMANENT' | 'CONTRACT' | 'LOCUM' | 'INTERN';
+export type HrStatus = 'ACTIVE' | 'SUSPENDED' | 'ON_LEAVE' | 'TERMINATED';
+export type PayrollPeriodStatus =
+  | 'DRAFT' | 'ATTENDANCE_LOCKED' | 'CALCULATED' | 'HR_REVIEWED' | 'FINANCE_APPROVED' | 'LOCKED';
+export type PayrollLineKind = 'EARNING' | 'DEDUCTION' | 'EMPLOYER_CONTRIB';
+export type StatutoryRateType =
+  | 'PAYE_BAND' | 'NSSF_TIER1' | 'NSSF_TIER2' | 'SHIF' | 'HOUSING_LEVY' | 'PERSONAL_RELIEF';
 
 export type LeaveType = 'annual' | 'sick' | 'emergency' | 'maternity' | 'paternity' | 'unpaid' | 'other';
 

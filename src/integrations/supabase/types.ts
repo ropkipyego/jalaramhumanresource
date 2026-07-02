@@ -372,37 +372,319 @@ export type Database = {
         }
         Relationships: []
       }
+      payroll_audit: {
+        Row: {
+          action: string
+          actor_id: string | null
+          after_data: Json | null
+          before_data: Json | null
+          created_at: string
+          entity_id: string | null
+          entity_type: string
+          id: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          after_data?: Json | null
+          before_data?: Json | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          after_data?: Json | null
+          before_data?: Json | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+        }
+        Relationships: []
+      }
+      payroll_line_items: {
+        Row: {
+          amount: number
+          code: string
+          created_at: string
+          id: string
+          kind: Database["public"]["Enums"]["payroll_line_kind"]
+          label: string
+          meta: Json | null
+          run_id: string
+        }
+        Insert: {
+          amount?: number
+          code: string
+          created_at?: string
+          id?: string
+          kind: Database["public"]["Enums"]["payroll_line_kind"]
+          label: string
+          meta?: Json | null
+          run_id: string
+        }
+        Update: {
+          amount?: number
+          code?: string
+          created_at?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["payroll_line_kind"]
+          label?: string
+          meta?: Json | null
+          run_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_line_items_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payroll_periods: {
+        Row: {
+          attendance_locked_at: string | null
+          attendance_locked_by: string | null
+          created_at: string
+          created_by: string | null
+          finance_approved_at: string | null
+          finance_approved_by: string | null
+          hr_reviewed_at: string | null
+          hr_reviewed_by: string | null
+          id: string
+          locked_at: string | null
+          locked_by: string | null
+          notes: string | null
+          period_month: number
+          period_year: number
+          status: Database["public"]["Enums"]["payroll_period_status"]
+          updated_at: string
+        }
+        Insert: {
+          attendance_locked_at?: string | null
+          attendance_locked_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          finance_approved_at?: string | null
+          finance_approved_by?: string | null
+          hr_reviewed_at?: string | null
+          hr_reviewed_by?: string | null
+          id?: string
+          locked_at?: string | null
+          locked_by?: string | null
+          notes?: string | null
+          period_month: number
+          period_year: number
+          status?: Database["public"]["Enums"]["payroll_period_status"]
+          updated_at?: string
+        }
+        Update: {
+          attendance_locked_at?: string | null
+          attendance_locked_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          finance_approved_at?: string | null
+          finance_approved_by?: string | null
+          hr_reviewed_at?: string | null
+          hr_reviewed_by?: string | null
+          id?: string
+          locked_at?: string | null
+          locked_by?: string | null
+          notes?: string | null
+          period_month?: number
+          period_year?: number
+          status?: Database["public"]["Enums"]["payroll_period_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      payroll_runs: {
+        Row: {
+          basic_salary: number | null
+          computed_at: string | null
+          created_at: string
+          employee_id: string
+          employer_contributions: number | null
+          exclusion_reason: string | null
+          gross_earnings: number | null
+          id: string
+          is_included: boolean
+          net_pay: number | null
+          period_id: string
+          total_deductions: number | null
+          updated_at: string
+        }
+        Insert: {
+          basic_salary?: number | null
+          computed_at?: string | null
+          created_at?: string
+          employee_id: string
+          employer_contributions?: number | null
+          exclusion_reason?: string | null
+          gross_earnings?: number | null
+          id?: string
+          is_included?: boolean
+          net_pay?: number | null
+          period_id: string
+          total_deductions?: number | null
+          updated_at?: string
+        }
+        Update: {
+          basic_salary?: number | null
+          computed_at?: string | null
+          created_at?: string
+          employee_id?: string
+          employer_contributions?: number | null
+          exclusion_reason?: string | null
+          gross_earnings?: number | null
+          id?: string
+          is_included?: boolean
+          net_pay?: number | null
+          period_id?: string
+          total_deductions?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_runs_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_runs_period_id_fkey"
+            columns: ["period_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_periods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payroll_settings: {
+        Row: {
+          created_at: string
+          holiday_multiplier: number
+          id: string
+          night_allowance_pct: number
+          overtime_rate_multiplier: number
+          scope: string
+          standard_shift_hours: number
+          updated_at: string
+          updated_by: string | null
+          weekend_allowance_pct: number
+        }
+        Insert: {
+          created_at?: string
+          holiday_multiplier?: number
+          id?: string
+          night_allowance_pct?: number
+          overtime_rate_multiplier?: number
+          scope?: string
+          standard_shift_hours?: number
+          updated_at?: string
+          updated_by?: string | null
+          weekend_allowance_pct?: number
+        }
+        Update: {
+          created_at?: string
+          holiday_multiplier?: number
+          id?: string
+          night_allowance_pct?: number
+          overtime_rate_multiplier?: number
+          scope?: string
+          standard_shift_hours?: number
+          updated_at?: string
+          updated_by?: string | null
+          weekend_allowance_pct?: number
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
+          address: string | null
           avatar_url: string | null
+          basic_salary: number | null
+          contract_end_date: string | null
           created_at: string
+          date_joined: string | null
+          designation: string | null
           email: string
+          employment_type: Database["public"]["Enums"]["employment_type"] | null
           full_name: string
+          hr_status: Database["public"]["Enums"]["hr_status"]
           id: string
           is_active: boolean
+          kra_pin: string | null
+          license_expiry_date: string | null
+          national_id: string | null
+          next_of_kin_name: string | null
+          next_of_kin_phone: string | null
+          nssf_number: string | null
           phone: string | null
+          practicing_license_no: string | null
+          shif_number: string | null
           staff_id: string
           updated_at: string
         }
         Insert: {
+          address?: string | null
           avatar_url?: string | null
+          basic_salary?: number | null
+          contract_end_date?: string | null
           created_at?: string
+          date_joined?: string | null
+          designation?: string | null
           email: string
+          employment_type?:
+            | Database["public"]["Enums"]["employment_type"]
+            | null
           full_name: string
+          hr_status?: Database["public"]["Enums"]["hr_status"]
           id: string
           is_active?: boolean
+          kra_pin?: string | null
+          license_expiry_date?: string | null
+          national_id?: string | null
+          next_of_kin_name?: string | null
+          next_of_kin_phone?: string | null
+          nssf_number?: string | null
           phone?: string | null
+          practicing_license_no?: string | null
+          shif_number?: string | null
           staff_id: string
           updated_at?: string
         }
         Update: {
+          address?: string | null
           avatar_url?: string | null
+          basic_salary?: number | null
+          contract_end_date?: string | null
           created_at?: string
+          date_joined?: string | null
+          designation?: string | null
           email?: string
+          employment_type?:
+            | Database["public"]["Enums"]["employment_type"]
+            | null
           full_name?: string
+          hr_status?: Database["public"]["Enums"]["hr_status"]
           id?: string
           is_active?: boolean
+          kra_pin?: string | null
+          license_expiry_date?: string | null
+          national_id?: string | null
+          next_of_kin_name?: string | null
+          next_of_kin_phone?: string | null
+          nssf_number?: string | null
           phone?: string | null
+          practicing_license_no?: string | null
+          shif_number?: string | null
           staff_id?: string
           updated_at?: string
         }
@@ -534,6 +816,42 @@ export type Database = {
           },
         ]
       }
+      statutory_rates: {
+        Row: {
+          config: Json
+          created_at: string
+          created_by: string | null
+          effective_from: string
+          effective_to: string | null
+          id: string
+          notes: string | null
+          rate_type: Database["public"]["Enums"]["statutory_rate_type"]
+          updated_at: string
+        }
+        Insert: {
+          config: Json
+          created_at?: string
+          created_by?: string | null
+          effective_from: string
+          effective_to?: string | null
+          id?: string
+          notes?: string | null
+          rate_type: Database["public"]["Enums"]["statutory_rate_type"]
+          updated_at?: string
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          created_by?: string | null
+          effective_from?: string
+          effective_to?: string | null
+          id?: string
+          notes?: string | null
+          rate_type?: Database["public"]["Enums"]["statutory_rate_type"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -617,7 +935,9 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "STAFF" | "HEAD" | "ADMIN" | "SUPER_ADMIN"
+      app_role: "STAFF" | "HEAD" | "ADMIN" | "SUPER_ADMIN" | "FINANCE_ADMIN"
+      employment_type: "PERMANENT" | "CONTRACT" | "LOCUM" | "INTERN"
+      hr_status: "ACTIVE" | "SUSPENDED" | "ON_LEAVE" | "TERMINATED"
       leave_status: "pending" | "approved" | "rejected" | "returned"
       leave_type:
         | "annual"
@@ -627,8 +947,23 @@ export type Database = {
         | "paternity"
         | "unpaid"
         | "other"
+      payroll_line_kind: "EARNING" | "DEDUCTION" | "EMPLOYER_CONTRIB"
+      payroll_period_status:
+        | "DRAFT"
+        | "ATTENDANCE_LOCKED"
+        | "CALCULATED"
+        | "HR_REVIEWED"
+        | "FINANCE_APPROVED"
+        | "LOCKED"
       rota_status: "draft" | "published"
       shift_code: "D" | "N" | "OFF" | "PH"
+      statutory_rate_type:
+        | "PAYE_BAND"
+        | "NSSF_TIER1"
+        | "NSSF_TIER2"
+        | "SHIF"
+        | "HOUSING_LEVY"
+        | "PERSONAL_RELIEF"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -756,7 +1091,9 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["STAFF", "HEAD", "ADMIN", "SUPER_ADMIN"],
+      app_role: ["STAFF", "HEAD", "ADMIN", "SUPER_ADMIN", "FINANCE_ADMIN"],
+      employment_type: ["PERMANENT", "CONTRACT", "LOCUM", "INTERN"],
+      hr_status: ["ACTIVE", "SUSPENDED", "ON_LEAVE", "TERMINATED"],
       leave_status: ["pending", "approved", "rejected", "returned"],
       leave_type: [
         "annual",
@@ -767,8 +1104,25 @@ export const Constants = {
         "unpaid",
         "other",
       ],
+      payroll_line_kind: ["EARNING", "DEDUCTION", "EMPLOYER_CONTRIB"],
+      payroll_period_status: [
+        "DRAFT",
+        "ATTENDANCE_LOCKED",
+        "CALCULATED",
+        "HR_REVIEWED",
+        "FINANCE_APPROVED",
+        "LOCKED",
+      ],
       rota_status: ["draft", "published"],
       shift_code: ["D", "N", "OFF", "PH"],
+      statutory_rate_type: [
+        "PAYE_BAND",
+        "NSSF_TIER1",
+        "NSSF_TIER2",
+        "SHIF",
+        "HOUSING_LEVY",
+        "PERSONAL_RELIEF",
+      ],
     },
   },
 } as const

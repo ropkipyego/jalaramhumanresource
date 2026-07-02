@@ -27,6 +27,9 @@ import {
   UserPlus,
   FileSpreadsheet,
   Building2,
+  Calculator,
+  Landmark,
+  ShieldCheck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -57,6 +60,12 @@ const adminNavItems: NavItem[] = [
   { title: 'Departments', url: '/departments', icon: Building2, roles: ['SUPER_ADMIN'] },
   { title: 'User Management', url: '/users', icon: Shield, roles: ['SUPER_ADMIN'] },
   { title: 'Department Rules', url: '/rules', icon: Settings, roles: ['SUPER_ADMIN'] },
+];
+
+const financeNavItems: NavItem[] = [
+  { title: 'Payroll', url: '/payroll', icon: Calculator, roles: ['ADMIN', 'SUPER_ADMIN', 'FINANCE_ADMIN'] },
+  { title: 'Staff Compliance', url: '/staff/compliance', icon: ShieldCheck, roles: ['ADMIN', 'SUPER_ADMIN', 'FINANCE_ADMIN'] },
+  { title: 'Statutory Settings', url: '/payroll/settings', icon: Landmark, roles: ['ADMIN', 'SUPER_ADMIN', 'FINANCE_ADMIN'] },
 ];
 
 export function AppSidebar() {
@@ -116,6 +125,17 @@ export function AppSidebar() {
             <SidebarGroupContent>
               <SidebarMenu>
                 {filterByRole(departmentNavItems).map(renderNavItem)}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {filterByRole(financeNavItems).length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Finance</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {filterByRole(financeNavItems).map(renderNavItem)}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>

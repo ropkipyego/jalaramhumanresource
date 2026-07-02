@@ -17,6 +17,10 @@ import InviteStaff from "@/pages/InviteStaff";
 import BulkStaffUpload from "@/pages/BulkStaffUpload";
 import RotaUpload from "@/pages/RotaUpload";
 import Departments from "@/pages/Departments";
+import Payroll from "@/pages/Payroll";
+import PayrollPeriod from "@/pages/PayrollPeriod";
+import StatutorySettings from "@/pages/StatutorySettings";
+import StaffCompliance from "@/pages/StaffCompliance";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -43,6 +47,10 @@ const App = () => (
               <Route path="invite" element={<InviteStaff />} />
               <Route path="invite/bulk" element={<BulkStaffUpload />} />
               <Route path="departments" element={<Departments />} />
+              <Route path="payroll" element={<Payroll />} />
+              <Route path="payroll/settings" element={<StatutorySettings />} />
+              <Route path="payroll/:periodId" element={<PayrollPeriod />} />
+              <Route path="staff/compliance" element={<StaffCompliance />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
