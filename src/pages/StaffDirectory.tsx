@@ -43,6 +43,7 @@ interface StaffMember extends Profile {
 const ROLE_OPTIONS: { value: AppRole; label: string; color: string }[] = [
   { value: 'STAFF', label: 'Staff', color: 'bg-secondary text-secondary-foreground' },
   { value: 'HEAD', label: 'Department Head', color: 'bg-[hsl(var(--info))] text-[hsl(var(--info-foreground))]' },
+  { value: 'FINANCE_ADMIN', label: 'Finance Admin', color: 'bg-primary text-primary-foreground' },
   { value: 'ADMIN', label: 'Admin', color: 'bg-[hsl(var(--warning))] text-[hsl(var(--warning-foreground))]' },
   { value: 'SUPER_ADMIN', label: 'Super Admin', color: 'bg-destructive text-destructive-foreground' },
 ];
