@@ -110,7 +110,7 @@ export default function StaffCompliance() {
       const v = (parsed.data as Record<string, unknown>)[k];
       payload[k] = v === '' ? null : v;
     });
-    const { error } = await supabase.from('profiles').update(payload).eq('id', editing.id);
+    const { error } = await supabase.from('profiles').update(payload as never).eq('id', editing.id);
     setSaving(false);
     if (error) return toast.error(error.message);
     toast.success('Compliance data saved');
