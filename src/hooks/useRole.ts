@@ -49,6 +49,8 @@ export function useRole() {
     isHead: role === 'HEAD',
     isAdmin: role === 'ADMIN',
     isSuperAdmin: role === 'SUPER_ADMIN',
+    isFinanceAdmin: role === 'FINANCE_ADMIN',
+    canViewPayroll: role === 'ADMIN' || role === 'SUPER_ADMIN' || role === 'FINANCE_ADMIN',
     headDepartments,
   };
 }
