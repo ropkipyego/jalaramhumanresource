@@ -130,6 +130,17 @@ export function AppSidebar() {
           </SidebarGroup>
         )}
 
+        {filterByRole(financeNavItems).length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Finance</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {filterByRole(financeNavItems).map(renderNavItem)}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
         {filterByRole(adminNavItems).length > 0 && (
           <SidebarGroup>
             <SidebarGroupLabel>Administration</SidebarGroupLabel>
