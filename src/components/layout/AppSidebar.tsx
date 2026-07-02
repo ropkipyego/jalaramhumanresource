@@ -62,6 +62,12 @@ const adminNavItems: NavItem[] = [
   { title: 'Department Rules', url: '/rules', icon: Settings, roles: ['SUPER_ADMIN'] },
 ];
 
+const financeNavItems: NavItem[] = [
+  { title: 'Payroll', url: '/payroll', icon: Calculator, roles: ['ADMIN', 'SUPER_ADMIN', 'FINANCE_ADMIN'] },
+  { title: 'Staff Compliance', url: '/staff/compliance', icon: ShieldCheck, roles: ['ADMIN', 'SUPER_ADMIN', 'FINANCE_ADMIN'] },
+  { title: 'Statutory Settings', url: '/payroll/settings', icon: Landmark, roles: ['ADMIN', 'SUPER_ADMIN', 'FINANCE_ADMIN'] },
+];
+
 export function AppSidebar() {
   const { signOut, profile } = useAuth();
   const { role, hasRole } = useRole();
