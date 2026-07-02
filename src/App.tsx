@@ -47,6 +47,10 @@ const App = () => (
               <Route path="invite" element={<InviteStaff />} />
               <Route path="invite/bulk" element={<BulkStaffUpload />} />
               <Route path="departments" element={<Departments />} />
+              <Route path="payroll" element={<Payroll />} />
+              <Route path="payroll/settings" element={<StatutorySettings />} />
+              <Route path="payroll/:periodId" element={<PayrollPeriod />} />
+              <Route path="staff/compliance" element={<StaffCompliance />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
