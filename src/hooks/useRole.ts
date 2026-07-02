@@ -10,6 +10,7 @@ export function useRole() {
     const roleHierarchy: Record<AppRole, number> = {
       STAFF: 1,
       HEAD: 2,
+      FINANCE_ADMIN: 3,
       ADMIN: 3,
       SUPER_ADMIN: 4,
     };
