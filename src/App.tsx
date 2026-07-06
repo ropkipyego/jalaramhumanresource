@@ -21,6 +21,7 @@ import Payroll from "@/pages/Payroll";
 import PayrollPeriod from "@/pages/PayrollPeriod";
 import StatutorySettings from "@/pages/StatutorySettings";
 import StaffCompliance from "@/pages/StaffCompliance";
+import MyProfile from "@/pages/MyProfile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -40,6 +41,7 @@ const App = () => (
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="my-rota" element={<MyRota />} />
               <Route path="my-leave" element={<MyLeave />} />
+              <Route path="my-profile" element={<MyProfile />} />
               <Route path="rota" element={<DepartmentRota />} />
               <Route path="rota-upload" element={<RotaUpload />} />
               <Route path="staff" element={<StaffDirectory />} />
