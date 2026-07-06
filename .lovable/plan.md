@@ -1,112 +1,160 @@
 
-# Phase 1 — Payroll Foundation (Go-live safe)
+# Plan — Staff ID fix, Self-Service Profile, Sidebar Categorisation, Phase 2 Payroll
 
-Goal: lay the audit-safe skeleton for payroll **without** running money yet. Nothing in this phase can pay, deduct, or export bank files. Phase 2 turns the engine on.
+Three things ship in this turn. Phase 2 is the big one so it's split into clear sub-steps.
 
-## What ships now
+---
 
-### 1. Compliance fields on every employee
-Extend `profiles` with payroll-critical identifiers. All optional at first so existing staff aren't blocked, but payroll runs in Phase 2 will refuse any employee missing `kra_pin`.
+## 1. Staff ID entered as-is (quick fix)
 
-New columns on `profiles`:
-- `national_id` (text)
-- `kra_pin` (text, unique when set)
-- `nssf_number` (text)
-- `shif_number` (text)
-- `practicing_license_no` (text)
-- `license_expiry_date` (date)
-- `designation` (text)
-- `employment_type` (enum: PERMANENT, CONTRACT, LOCUM, INTERN)
-- `date_joined` (date)
-- `contract_end_date` (date)
-- `basic_salary` (numeric(12,2))
-- `hr_status` (enum: ACTIVE, SUSPENDED, ON_LEAVE, TERMINATED, default ACTIVE)
-- `next_of_kin_name`, `next_of_kin_phone`, `address` (text)
+Right now the `handle_new_user` trigger and bulk upload replace missing/duplicate Staff IDs with `AUTO-xxxxx`. That's why some rows lost their real Staff ID.
 
-Staff Directory gets a new "Compliance & Payroll" tab (ADMIN/SUPER_ADMIN/FINANCE_ADMIN only) to edit these.
+Change:
+- `handle_new_user`: only fall back to `AUTO-…` when metadata is empty. Never overwrite a provided Staff ID even if it collides — instead raise a clear error so the uploader sees it.
+- `bulk-create-staff` edge function: stop rewriting the Staff ID. Pass it through verbatim, and if it already exists mark the row `skipped` with reason "Staff ID already exists" (already done — but confirm no silent rewrite).
+- `create-staff-user` edge function: same guarantee.
 
-### 2. New role: FINANCE_ADMIN
-Add to `app_role` enum. Segregation of duties enforced in SQL:
-- FINANCE_ADMIN can read all payroll data, approve payroll runs, export bank files.
-- SUPER_ADMIN **cannot** approve a payroll run — checked in the approval RPC.
-- Sidebar gets a "Finance" group visible only to FINANCE_ADMIN.
+Existing rows that were auto-renamed stay as-is (I won't touch historical data without you saying so). If you want me to bulk-rename them from a CSV, say the word.
 
-### 3. Statutory settings (editable by SUPER_ADMIN)
-Seeded with 2025/2026 Kenya defaults. Versioned so historical payroll stays reproducible.
+---
 
-- `statutory_rates` — one active row per (`rate_type`, `effective_from`)
-  - `rate_type`: PAYE_BAND, NSSF_TIER1, NSSF_TIER2, SHIF, HOUSING_LEVY, PERSONAL_RELIEF
-  - `config` jsonb (bands array for PAYE, percentage + cap for others)
-  - `effective_from`, `effective_to`
-- `payroll_settings` — global toggles (standard shift hours, night allowance %, weekend %, holiday multiplier, overtime rate)
+## 2. Self-service profile ("My Profile")
 
-Seeded values:
-- PAYE bands (2024/2025 Finance Act): 10% ≤24k, 25% ≤32,333, 30% ≤500k, 32.5% ≤800k, 35% >800k
-- Personal relief: KES 2,400/month
-- NSSF Tier I: 6% up to 8,000 (both employee + employer)
-- NSSF Tier II: 6% on 8,001–72,000
-- SHIF: 2.75% of gross, min KES 300
-- Housing Levy: 1.5% of gross (employee) + 1.5% (employer)
+Every logged-in user gets `/my-profile`. They can view and edit their **own** record:
 
-A `/statutory-settings` page (SUPER_ADMIN only) lets you edit bands and adds a new `effective_from` row instead of mutating history.
+Editable by the user:
+- Phone, address, next-of-kin name & phone
+- KRA PIN, NSSF number, SHIF number, National ID
+- Practicing licence number + expiry
+- Avatar (later — file storage), for now URL field
 
-### 4. Payroll skeleton (read-only)
-Tables created, UI shows structure, but no calculations run yet.
+Read-only (admin-only):
+- Staff ID, Email, Full name, Role, Departments
+- Basic salary, employment_type, date_joined, contract_end_date, hr_status
 
-- `payroll_periods` — month, year, status (DRAFT, ATTENDANCE_LOCKED, CALCULATED, HR_REVIEWED, FINANCE_APPROVED, LOCKED), locked_by, locked_at
-- `payroll_runs` — one per employee per period; earnings/deductions/net_pay all nullable
-- `payroll_line_items` — breakdown rows (BASIC, HOUSE_ALLOWANCE, NIGHT_ALLOWANCE, PAYE, NSSF, SHIF, HOUSING_LEVY, …), type EARNING or DEDUCTION
-- `payroll_audit` — append-only log of every payroll state change with before/after JSON
+RLS: `profiles` already lets a user update their own row; I'll tighten it so non-admin updates can't touch salary/role/status/staff_id/full_name via a `BEFORE UPDATE` trigger that resets those columns to `OLD.*` when `auth.uid() = id` and the user is not ADMIN/SUPER_ADMIN.
 
-New pages (all read-only in Phase 1):
-- `/payroll` — list periods, "New Period" button (creates DRAFT only)
-- `/payroll/:periodId` — period detail with employee list and status banner ("Engine not yet enabled — Phase 2")
-- `/payroll/settings` — statutory rates viewer/editor (SUPER_ADMIN)
+Sidebar: "My Profile" under a new **Me** group.
 
-Sidebar additions:
-- **Finance** group: Payroll, Statutory Settings, Bank Exports (disabled)
-- Visible to ADMIN/SUPER_ADMIN/FINANCE_ADMIN with role-appropriate items.
+---
 
-### 5. Audit hardening
-- Every write to `profiles.basic_salary`, `payroll_periods.status`, `statutory_rates`, and `user_roles` fires `log_audit` via trigger.
-- `payroll_audit` rows are insert-only (RLS blocks update/delete for everyone incl. service_role via policy).
+## 3. Sidebar categorisation
 
-## What is explicitly NOT in Phase 1
+Regroup the sidebar so it flows top-down by daily use:
 
-- Calculation engine (PAYE/NSSF/SHIF math)
-- Payslip generation / PDF
-- Bank export CSV
-- Clock-in module
-- Attendance-to-payroll derivation
-- Approval workflow buttons (present but disabled with "Phase 2" tooltip)
+```
+Me
+ ├─ Dashboard
+ ├─ My Profile
+ ├─ My Rota
+ └─ My Leave
 
-These come in Phase 2 once you've populated compliance fields for all staff and confirmed the statutory numbers.
+Rotas                (HEAD/ADMIN/SUPER_ADMIN)
+ ├─ Department Rota
+ └─ Rota Upload
 
-## Technical details
+People               (ADMIN/SUPER_ADMIN)
+ ├─ Staff Directory
+ ├─ Staff Compliance
+ ├─ Invite Staff
+ ├─ Bulk Upload
+ ├─ Departments
+ └─ Leave Admin
 
-**Migration order (single migration):**
-1. Add columns/enums to `profiles` + `app_role`.
-2. Create `statutory_rates`, `payroll_settings`, `payroll_periods`, `payroll_runs`, `payroll_line_items`, `payroll_audit`.
-3. GRANTs on each (service_role always; authenticated where policies allow).
-4. RLS enable + policies using `has_role()` and a new `has_any_role()` check for FINANCE_ADMIN.
-5. Seed statutory_rates + payroll_settings defaults.
-6. Segregation-of-duties trigger: reject `payroll_periods.status = 'FINANCE_APPROVED'` update unless `has_role(auth.uid(), 'FINANCE_ADMIN')` AND actor is NOT the same user who set status to `HR_REVIEWED`.
+Finance              (FINANCE_ADMIN + ADMIN/SUPER_ADMIN read)
+ ├─ Payroll
+ ├─ Statutory Settings
+ └─ Bank Exports
 
-**Files touched:**
-- `supabase/migrations/<new>.sql` (all schema + seed)
-- `src/types/database.ts` — new types
-- `src/hooks/useRole.ts` — add FINANCE_ADMIN, `isFinanceAdmin`
-- `src/components/layout/AppSidebar.tsx` — Finance group
-- `src/pages/Payroll.tsx` (new), `src/pages/PayrollPeriod.tsx` (new), `src/pages/StatutorySettings.tsx` (new)
-- `src/pages/StaffDirectory.tsx` — Compliance & Payroll tab
-- `src/App.tsx` — routes
-- `README.md` + `Jalaram_HR_SOP.md` — Phase 1 payroll section
+System               (SUPER_ADMIN)
+ └─ Audit Logs
+```
 
-## After you approve
+No route changes — just grouping in `AppSidebar.tsx`.
 
-I run the migration, wire the UI, and you can immediately:
-1. Assign FINANCE_ADMIN to your finance person.
-2. Start filling KRA PIN / NSSF / SHIF / basic salary for staff (bulk upload template will be extended in the next turn if you want).
-3. Review the seeded statutory rates and adjust if the finance team has different numbers.
+---
 
-Then we schedule Phase 2 (engine + approvals + payslips + bank export) once the data is clean.
+## 4. Phase 2 — Payroll Engine (Kenya compliant)
+
+Turns the Phase 1 skeleton into a working engine. Still gated behind FINANCE_ADMIN / SUPER_ADMIN.
+
+### 4a. Attendance derivation (from Rota)
+- New SQL function `derive_attendance(period_id)` — for each employee, walks published `rota_assignments` between `period_start` and `period_end`, counts:
+  - `days_worked` (D + N)
+  - `night_shifts` (N)
+  - `public_holidays_worked` (PH)
+  - `off_days` (OFF)
+  - `absent_days` (no assignment & not on approved leave)
+  - `leave_days` (from approved `leave_requests` overlapping the period, split paid vs unpaid by `leave_type`)
+- Writes per-employee attendance summary into `payroll_runs.attendance_json`.
+
+### 4b. Calculation engine (`calculate_payroll(period_id)`)
+Runs once, when period moves DRAFT → CALCULATED. For every ACTIVE employee with `basic_salary` set:
+
+1. **Earnings**
+   - Basic = `basic_salary`
+   - House allowance = if configured on employee (Phase 2.1 adds allowances table; for now optional column)
+   - Night allowance = `night_shifts × (basic/30) × night_pct` (default 15%)
+   - Public holiday allowance = `ph_worked × (basic/30) × holiday_multiplier` (default 200%)
+   - Unpaid-leave deduction = `unpaid_days × (basic/30)`
+   - Gross = sum of earnings
+
+2. **Statutory deductions** (from active `statutory_rates`)
+   - **NSSF**: Tier I 6% × min(pensionable, 8000), Tier II 6% × min(max(pensionable-8000, 0), 64000). Employee + employer legs both stored.
+   - **SHIF**: max(2.75% × gross, 300)
+   - **Housing Levy**: 1.5% × gross (employee) + 1.5% (employer)
+   - **PAYE**: apply bands to `taxable = gross − NSSF_employee − SHIF − Housing_employee`, then subtract Personal Relief (2,400), floor at 0.
+   - Insurance relief / mortgage relief: skipped Phase 2, add later.
+
+3. **Net pay** = Gross − PAYE − NSSF_emp − SHIF − Housing_emp − Unpaid − other deductions.
+
+4. **Write** `payroll_line_items` rows for every component (traceable audit) + update `payroll_runs` totals.
+
+5. Refuses to run if any active employee is missing `kra_pin` OR `basic_salary` — returns a list so HR can fix first.
+
+### 4c. Workflow buttons wired
+On `/payroll/:periodId`:
+- **Lock Attendance** (HR/ADMIN) — DRAFT → ATTENDANCE_LOCKED, runs `derive_attendance`.
+- **Run Calculation** (HR/ADMIN) — ATTENDANCE_LOCKED → CALCULATED, runs `calculate_payroll`.
+- **HR Review** (HR/ADMIN, not the same person as approver) — CALCULATED → HR_REVIEWED.
+- **Finance Approve** (FINANCE_ADMIN only, SoD trigger already blocks HR reviewer) — HR_REVIEWED → FINANCE_APPROVED.
+- **Finalise / Lock** (SUPER_ADMIN) — FINANCE_APPROVED → LOCKED (immutable).
+- Any status roll-back allowed only from DRAFT/ATTENDANCE_LOCKED/CALCULATED by ADMIN.
+
+### 4d. Payslip
+- `/payroll/:periodId/payslip/:employeeId` — clean printable page (React + `window.print()`), employer header, employee block, earnings, deductions, employer contribs, net pay in words.
+- Employees see their own past payslips at `/my-payslips` (only for `LOCKED` periods).
+
+### 4e. Bank export
+- `/payroll/:periodId/export` (FINANCE_ADMIN, period must be FINANCE_APPROVED or LOCKED):
+  - CSV: Name, Bank, Branch, Account, Amount, Reference — one row per employee.
+  - New fields on `profiles`: `bank_name`, `bank_branch`, `bank_account`. Editable in My Profile.
+- Statutory returns (P10/NSSF/SHIF/Housing) exported as CSV per period.
+
+### 4f. Audit
+Already in place from Phase 1. Every calculation/approval/lock writes to `payroll_audit`.
+
+---
+
+## Technical notes
+
+- New migration adds: `bank_name`, `bank_branch`, `bank_account`, `house_allowance` on profiles; `attendance_json` on `payroll_runs`; profile-protection trigger; three SQL functions (`derive_attendance`, `calculate_payroll`, `net_pay_in_words`).
+- No changes to `auth.users`. Client edits go through Supabase directly (RLS + trigger).
+- No calculations happen client-side — the engine is 100% SQL so it's reproducible and auditable.
+- I'll test with one sample employee (you can seed) before you run a real period.
+
+---
+
+## Files touched
+
+- `supabase/migrations/<new>.sql` — schema + functions + trigger
+- `supabase/functions/bulk-create-staff/index.ts`, `create-staff-user/index.ts` — Staff ID passthrough
+- `src/pages/MyProfile.tsx` (new), `MyPayslips.tsx` (new), `PayrollPayslip.tsx` (new), `PayrollBankExport.tsx` (new)
+- `src/pages/PayrollPeriod.tsx` — workflow buttons, engine calls
+- `src/components/layout/AppSidebar.tsx` — regroup
+- `src/App.tsx` — new routes
+- `README.md` + `Jalaram_HR_SOP.md` — Phase 2 sections + payslip/bank guide
+
+---
+
+Approve and I'll ship it in one pass.
