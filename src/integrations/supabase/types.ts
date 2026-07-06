@@ -505,6 +505,7 @@ export type Database = {
       }
       payroll_runs: {
         Row: {
+          attendance_json: Json | null
           basic_salary: number | null
           computed_at: string | null
           created_at: string
@@ -520,6 +521,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          attendance_json?: Json | null
           basic_salary?: number | null
           computed_at?: string | null
           created_at?: string
@@ -535,6 +537,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          attendance_json?: Json | null
           basic_salary?: number | null
           computed_at?: string | null
           created_at?: string
@@ -609,6 +612,9 @@ export type Database = {
         Row: {
           address: string | null
           avatar_url: string | null
+          bank_account: string | null
+          bank_branch: string | null
+          bank_name: string | null
           basic_salary: number | null
           contract_end_date: string | null
           created_at: string
@@ -617,6 +623,7 @@ export type Database = {
           email: string
           employment_type: Database["public"]["Enums"]["employment_type"] | null
           full_name: string
+          house_allowance: number
           hr_status: Database["public"]["Enums"]["hr_status"]
           id: string
           is_active: boolean
@@ -635,6 +642,9 @@ export type Database = {
         Insert: {
           address?: string | null
           avatar_url?: string | null
+          bank_account?: string | null
+          bank_branch?: string | null
+          bank_name?: string | null
           basic_salary?: number | null
           contract_end_date?: string | null
           created_at?: string
@@ -645,6 +655,7 @@ export type Database = {
             | Database["public"]["Enums"]["employment_type"]
             | null
           full_name: string
+          house_allowance?: number
           hr_status?: Database["public"]["Enums"]["hr_status"]
           id: string
           is_active?: boolean
@@ -663,6 +674,9 @@ export type Database = {
         Update: {
           address?: string | null
           avatar_url?: string | null
+          bank_account?: string | null
+          bank_branch?: string | null
+          bank_name?: string | null
           basic_salary?: number | null
           contract_end_date?: string | null
           created_at?: string
@@ -673,6 +687,7 @@ export type Database = {
             | Database["public"]["Enums"]["employment_type"]
             | null
           full_name?: string
+          house_allowance?: number
           hr_status?: Database["public"]["Enums"]["hr_status"]
           id?: string
           is_active?: boolean
@@ -878,10 +893,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calculate_payroll: { Args: { _period_id: string }; Returns: Json }
       calculate_used_leave_days: {
         Args: { _employee_id: string; _year?: number }
         Returns: number
       }
+      derive_attendance: { Args: { _period_id: string }; Returns: Json }
       get_head_departments: { Args: { _user_id: string }; Returns: string[] }
       get_or_create_leave_entitlement: {
         Args: { _employee_id: string; _year?: number }
