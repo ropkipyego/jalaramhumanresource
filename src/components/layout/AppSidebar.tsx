@@ -10,7 +10,7 @@ import {
 import {
   Calendar, CalendarDays, ClipboardList, Users, Settings, Shield, LogOut,
   Home, UserCircle, UserPlus, FileSpreadsheet, Building2, Calculator,
-  Landmark, ShieldCheck, User,
+  Landmark, ShieldCheck, User, Clock, CalendarCheck, SlidersHorizontal,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -40,6 +40,13 @@ const peopleNav: NavItem[] = [
   { title: 'Bulk Upload Staff', url: '/invite/bulk', icon: FileSpreadsheet, roles: ['ADMIN', 'SUPER_ADMIN'] },
   { title: 'Departments', url: '/departments', icon: Building2, roles: ['SUPER_ADMIN'] },
   { title: 'Leave Admin', url: '/leave-admin', icon: CalendarDays, roles: ['HEAD', 'ADMIN', 'SUPER_ADMIN'] },
+];
+
+const attendanceNav: NavItem[] = [
+  { title: 'Dashboard', url: '/attendance', icon: Clock },
+  { title: 'Shift Templates', url: '/attendance/shift-templates', icon: SlidersHorizontal, roles: ['HEAD', 'ADMIN', 'SUPER_ADMIN'] },
+  { title: 'Holiday Calendar', url: '/attendance/holidays', icon: CalendarCheck, roles: ['HEAD', 'ADMIN', 'SUPER_ADMIN'] },
+  { title: 'Attendance Settings', url: '/attendance/settings', icon: Settings, roles: ['SUPER_ADMIN'] },
 ];
 
 const financeNav: NavItem[] = [
@@ -105,6 +112,7 @@ export function AppSidebar() {
         {renderGroup('Me', meNav)}
         {renderGroup('Rotas', rotasNav)}
         {renderGroup('People', peopleNav)}
+        {renderGroup('Time & Attendance', attendanceNav)}
         {renderGroup('Finance', financeNav)}
         {renderGroup('System', systemNav)}
       </SidebarContent>
