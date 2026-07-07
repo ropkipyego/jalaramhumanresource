@@ -22,6 +22,10 @@ import PayrollPeriod from "@/pages/PayrollPeriod";
 import StatutorySettings from "@/pages/StatutorySettings";
 import StaffCompliance from "@/pages/StaffCompliance";
 import MyProfile from "@/pages/MyProfile";
+import AttendanceDashboard from "@/pages/AttendanceDashboard";
+import ShiftTemplates from "@/pages/ShiftTemplates";
+import HolidayCalendar from "@/pages/HolidayCalendar";
+import AttendanceSettings from "@/pages/AttendanceSettings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -53,6 +57,10 @@ const App = () => (
               <Route path="payroll/settings" element={<StatutorySettings />} />
               <Route path="payroll/:periodId" element={<PayrollPeriod />} />
               <Route path="staff/compliance" element={<StaffCompliance />} />
+              <Route path="attendance" element={<AttendanceDashboard />} />
+              <Route path="attendance/shift-templates" element={<ShiftTemplates />} />
+              <Route path="attendance/holidays" element={<HolidayCalendar />} />
+              <Route path="attendance/settings" element={<AttendanceSettings />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
