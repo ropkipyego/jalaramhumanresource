@@ -88,7 +88,7 @@ export default function ShiftTemplates() {
                 <div><Label>OT Round (min)</Label><Input type="number" value={form.ot_round_minutes ?? 0} onChange={(e) => setForm({ ...form, ot_round_minutes: +e.target.value })} /></div>
                 {(['crosses_midnight','paid_break','is_night','is_weekend','is_holiday','is_active'] as const).map((k) => (
                   <div key={k} className="flex items-center justify-between border rounded-md px-3 py-2">
-                    <Label className="capitalize">{k.replaceAll('_', ' ')}</Label>
+                    <Label className="capitalize">{k.replace(/_/g, ' ')}</Label>
                     <Switch checked={!!(form as any)[k]} onCheckedChange={(v) => setForm({ ...form, [k]: v })} />
                   </div>
                 ))}
