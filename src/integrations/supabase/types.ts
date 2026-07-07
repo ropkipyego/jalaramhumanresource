@@ -32,6 +32,69 @@ export type Database = {
         }
         Relationships: []
       }
+      attendance_settings: {
+        Row: {
+          approval_levels: number
+          grace_min: number
+          id: boolean
+          late_threshold_min: number
+          lock_after_payroll: boolean
+          max_daily_ot_min: number
+          max_monthly_ot_min: number
+          min_ot_min: number
+          night_diff_pct: number
+          night_end: string
+          night_start: string
+          ot_round_min: number
+          saturday_working: boolean
+          sunday_working: boolean
+          updated_at: string
+          updated_by: string | null
+          weekend_allow_pct: number
+          weekend_ot_pct: number
+        }
+        Insert: {
+          approval_levels?: number
+          grace_min?: number
+          id?: boolean
+          late_threshold_min?: number
+          lock_after_payroll?: boolean
+          max_daily_ot_min?: number
+          max_monthly_ot_min?: number
+          min_ot_min?: number
+          night_diff_pct?: number
+          night_end?: string
+          night_start?: string
+          ot_round_min?: number
+          saturday_working?: boolean
+          sunday_working?: boolean
+          updated_at?: string
+          updated_by?: string | null
+          weekend_allow_pct?: number
+          weekend_ot_pct?: number
+        }
+        Update: {
+          approval_levels?: number
+          grace_min?: number
+          id?: boolean
+          late_threshold_min?: number
+          lock_after_payroll?: boolean
+          max_daily_ot_min?: number
+          max_monthly_ot_min?: number
+          min_ot_min?: number
+          night_diff_pct?: number
+          night_end?: string
+          night_start?: string
+          ot_round_min?: number
+          saturday_working?: boolean
+          sunday_working?: boolean
+          updated_at?: string
+          updated_by?: string | null
+          weekend_allow_pct?: number
+          weekend_ot_pct?: number
+        }
+        Relationships: []
+      }
       audit_logs: {
         Row: {
           action: string
@@ -705,6 +768,42 @@ export type Database = {
         }
         Relationships: []
       }
+      public_holidays: {
+        Row: {
+          county: string | null
+          created_at: string
+          holiday_date: string
+          id: string
+          is_paid: boolean
+          name: string
+          notes: string | null
+          scope: Database["public"]["Enums"]["holiday_scope"]
+          updated_at: string
+        }
+        Insert: {
+          county?: string | null
+          created_at?: string
+          holiday_date: string
+          id?: string
+          is_paid?: boolean
+          name: string
+          notes?: string | null
+          scope?: Database["public"]["Enums"]["holiday_scope"]
+          updated_at?: string
+        }
+        Update: {
+          county?: string | null
+          created_at?: string
+          holiday_date?: string
+          id?: string
+          is_paid?: boolean
+          name?: string
+          notes?: string | null
+          scope?: Database["public"]["Enums"]["holiday_scope"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       push_subscriptions: {
         Row: {
           auth: string
@@ -744,6 +843,7 @@ export type Database = {
           notes: string | null
           rota_week_id: string
           shift_code: Database["public"]["Enums"]["shift_code"]
+          shift_template_id: string | null
           updated_at: string
         }
         Insert: {
@@ -754,6 +854,7 @@ export type Database = {
           notes?: string | null
           rota_week_id: string
           shift_code: Database["public"]["Enums"]["shift_code"]
+          shift_template_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -764,6 +865,7 @@ export type Database = {
           notes?: string | null
           rota_week_id?: string
           shift_code?: Database["public"]["Enums"]["shift_code"]
+          shift_template_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -779,6 +881,13 @@ export type Database = {
             columns: ["rota_week_id"]
             isOneToOne: false
             referencedRelation: "rota_weeks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rota_assignments_shift_template_id_fkey"
+            columns: ["shift_template_id"]
+            isOneToOne: false
+            referencedRelation: "shift_templates"
             referencedColumns: ["id"]
           },
         ]
@@ -827,6 +936,83 @@ export type Database = {
             columns: ["published_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shift_templates: {
+        Row: {
+          code: string
+          created_at: string
+          crosses_midnight: boolean
+          department_id: string | null
+          end_time: string
+          expected_hours: number
+          grace_after_min: number
+          grace_before_min: number
+          id: string
+          is_active: boolean
+          is_holiday: boolean
+          is_night: boolean
+          is_weekend: boolean
+          meal_break_minutes: number
+          min_ot_minutes: number
+          name: string
+          ot_round_minutes: number
+          paid_break: boolean
+          start_time: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          crosses_midnight?: boolean
+          department_id?: string | null
+          end_time: string
+          expected_hours?: number
+          grace_after_min?: number
+          grace_before_min?: number
+          id?: string
+          is_active?: boolean
+          is_holiday?: boolean
+          is_night?: boolean
+          is_weekend?: boolean
+          meal_break_minutes?: number
+          min_ot_minutes?: number
+          name: string
+          ot_round_minutes?: number
+          paid_break?: boolean
+          start_time: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          crosses_midnight?: boolean
+          department_id?: string | null
+          end_time?: string
+          expected_hours?: number
+          grace_after_min?: number
+          grace_before_min?: number
+          id?: string
+          is_active?: boolean
+          is_holiday?: boolean
+          is_night?: boolean
+          is_weekend?: boolean
+          meal_break_minutes?: number
+          min_ot_minutes?: number
+          name?: string
+          ot_round_minutes?: number
+          paid_break?: boolean
+          start_time?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shift_templates_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
             referencedColumns: ["id"]
           },
         ]
@@ -954,6 +1140,7 @@ export type Database = {
     Enums: {
       app_role: "STAFF" | "HEAD" | "ADMIN" | "SUPER_ADMIN" | "FINANCE_ADMIN"
       employment_type: "PERMANENT" | "CONTRACT" | "LOCUM" | "INTERN"
+      holiday_scope: "NATIONAL" | "HOSPITAL" | "COUNTY" | "CUSTOM"
       hr_status: "ACTIVE" | "SUSPENDED" | "ON_LEAVE" | "TERMINATED"
       leave_status: "pending" | "approved" | "rejected" | "returned"
       leave_type:
@@ -1110,6 +1297,7 @@ export const Constants = {
     Enums: {
       app_role: ["STAFF", "HEAD", "ADMIN", "SUPER_ADMIN", "FINANCE_ADMIN"],
       employment_type: ["PERMANENT", "CONTRACT", "LOCUM", "INTERN"],
+      holiday_scope: ["NATIONAL", "HOSPITAL", "COUNTY", "CUSTOM"],
       hr_status: ["ACTIVE", "SUSPENDED", "ON_LEAVE", "TERMINATED"],
       leave_status: ["pending", "approved", "rejected", "returned"],
       leave_type: [
