@@ -110,3 +110,26 @@ Vite · React 18 · TypeScript · Tailwind CSS · shadcn/ui · Lovable Cloud (Su
 npm install
 npm run dev
 ```
+
+---
+
+## Time & Attendance Module (Phase A)
+
+New top-level module under **Time & Attendance** in the sidebar:
+
+- **Dashboard** (`/attendance`) — KPIs and roadmap. Live figures activate in Phase B.
+- **Shift Templates** (`/attendance/shift-templates`) — configurable shifts: name, code, start/end, cross-midnight, expected hours, grace before/after, min OT, OT rounding, meal break, paid-break, night/weekend/holiday flags. Rota assignments can now reference a template (`rota_assignments.shift_template_id`). Existing D/N/OFF/PH codes continue to work.
+- **Holiday Calendar** (`/attendance/holidays`) — National, Hospital, County or Custom holidays. Seeded with Kenya 2026 nationals. Used by payroll for holiday pay.
+- **Attendance Settings** (`/attendance/settings`, SUPER_ADMIN only) — late threshold, grace, min/round OT, daily/monthly OT caps, night window & differential, weekend rules & rates, approval levels, lock-after-payroll toggle.
+
+### Roles
+- STAFF: read shift templates & holidays (own attendance in Phase B).
+- HEAD / ADMIN / SUPER_ADMIN: manage templates & holidays.
+- SUPER_ADMIN: attendance settings.
+- FINANCE_ADMIN: read-only.
+
+### Coming in Phase B
+Biometric Excel import, attendance calculation engine (expected-vs-actual, cross-midnight aware), exceptions queue, overtime approval, employee self-view.
+
+### Coming in Phase C
+Supervisor → Head → HR → Lock approval workflow, full report suite (PDF/Excel), payroll bridge so payroll consumes only **approved** attendance.
