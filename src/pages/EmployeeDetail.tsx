@@ -75,36 +75,38 @@ export default function EmployeeDetail() {
   const save = async () => {
     if (!id || !profile) return;
     setSaving(true);
-    const { error } = await supabase.from("profiles").update({
-      phone: profile.phone || null,
-      address: profile.address || null,
-      gender: profile.gender || null,
-      date_of_birth: profile.date_of_birth || null,
-      passport_no: profile.passport_no || null,
-      biometric_enroll_id: profile.biometric_enroll_id || null,
-      national_id: profile.national_id || null,
-      branch_id: profile.branch_id || null,
-      position_id: profile.position_id || null,
-      grade_id: profile.grade_id || null,
-      manager_id: profile.manager_id || null,
-      designation: profile.designation || null,
-      employment_type: profile.employment_type || null,
-      hr_status: profile.hr_status,
-      date_joined: profile.date_joined || null,
-      contract_end_date: profile.contract_end_date || null,
-      probation_end_date: profile.probation_end_date || null,
-      basic_salary: profile.basic_salary ?? null,
-      kra_pin: profile.kra_pin || null,
-      nssf_number: profile.nssf_number || null,
-      shif_number: profile.shif_number || null,
-      next_of_kin_name: profile.next_of_kin_name || null,
-      next_of_kin_phone: profile.next_of_kin_phone || null,
-      practicing_license_no: profile.practicing_license_no || null,
-      license_expiry_date: profile.license_expiry_date || null,
-      bank_name: profile.bank_name || null,
-      bank_branch: profile.bank_branch || null,
-      bank_account: profile.bank_account || null,
-    }).eq("id", id);
+    const p = profile as Record<string, any>;
+    const payload: Record<string, any> = {
+      phone: p.phone || null,
+      address: p.address || null,
+      gender: p.gender || null,
+      date_of_birth: p.date_of_birth || null,
+      passport_no: p.passport_no || null,
+      biometric_enroll_id: p.biometric_enroll_id || null,
+      national_id: p.national_id || null,
+      branch_id: p.branch_id || null,
+      position_id: p.position_id || null,
+      grade_id: p.grade_id || null,
+      manager_id: p.manager_id || null,
+      designation: p.designation || null,
+      employment_type: p.employment_type || null,
+      hr_status: p.hr_status,
+      date_joined: p.date_joined || null,
+      contract_end_date: p.contract_end_date || null,
+      probation_end_date: p.probation_end_date || null,
+      basic_salary: p.basic_salary ?? null,
+      kra_pin: p.kra_pin || null,
+      nssf_number: p.nssf_number || null,
+      shif_number: p.shif_number || null,
+      next_of_kin_name: p.next_of_kin_name || null,
+      next_of_kin_phone: p.next_of_kin_phone || null,
+      practicing_license_no: p.practicing_license_no || null,
+      license_expiry_date: p.license_expiry_date || null,
+      bank_name: p.bank_name || null,
+      bank_branch: p.bank_branch || null,
+      bank_account: p.bank_account || null,
+    };
+    const { error } = await supabase.from("profiles").update(payload).eq("id", id);
     setSaving(false);
     if (error) toast.error(error.message);
     else toast.success("Employee record updated");
