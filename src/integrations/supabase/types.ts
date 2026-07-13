@@ -1319,6 +1319,7 @@ export type Database = {
           is_active: boolean
           items: Json
           name: string
+          sort_order: number
           title: string | null
           updated_at: string
         }
@@ -1329,6 +1330,7 @@ export type Database = {
           is_active?: boolean
           items?: Json
           name: string
+          sort_order?: number
           title?: string | null
           updated_at?: string
         }
@@ -1339,6 +1341,7 @@ export type Database = {
           is_active?: boolean
           items?: Json
           name?: string
+          sort_order?: number
           title?: string | null
           updated_at?: string
         }
@@ -1365,6 +1368,7 @@ export type Database = {
           kra_pin: string | null
           legal_name: string | null
           logo_url: string | null
+          name: string | null
           nssf_number: string | null
           organization_name: string
           payroll_cutoff_day: number | null
@@ -1372,6 +1376,7 @@ export type Database = {
           shif_number: string | null
           timezone: string | null
           updated_at: string
+          updated_by: string | null
           website: string | null
         }
         Insert: {
@@ -1386,6 +1391,7 @@ export type Database = {
           kra_pin?: string | null
           legal_name?: string | null
           logo_url?: string | null
+          name?: string | null
           nssf_number?: string | null
           organization_name?: string
           payroll_cutoff_day?: number | null
@@ -1393,6 +1399,7 @@ export type Database = {
           shif_number?: string | null
           timezone?: string | null
           updated_at?: string
+          updated_by?: string | null
           website?: string | null
         }
         Update: {
@@ -1407,6 +1414,7 @@ export type Database = {
           kra_pin?: string | null
           legal_name?: string | null
           logo_url?: string | null
+          name?: string | null
           nssf_number?: string | null
           organization_name?: string
           payroll_cutoff_day?: number | null
@@ -1414,6 +1422,7 @@ export type Database = {
           shif_number?: string | null
           timezone?: string | null
           updated_at?: string
+          updated_by?: string | null
           website?: string | null
         }
         Relationships: []
@@ -1779,6 +1788,7 @@ export type Database = {
           bank_name: string | null
           basic_salary: number | null
           biometric_enroll_id: string | null
+          branch_id: string | null
           contract_end_date: string | null
           created_at: string
           date_joined: string | null
@@ -1787,18 +1797,24 @@ export type Database = {
           email: string
           employment_type: Database["public"]["Enums"]["employment_type"] | null
           full_name: string
+          gender: string | null
+          grade_id: string | null
           house_allowance: number
           hr_status: Database["public"]["Enums"]["hr_status"]
           id: string
           is_active: boolean
           kra_pin: string | null
           license_expiry_date: string | null
+          manager_id: string | null
           national_id: string | null
           next_of_kin_name: string | null
           next_of_kin_phone: string | null
           nssf_number: string | null
+          passport_no: string | null
           phone: string | null
+          position_id: string | null
           practicing_license_no: string | null
+          probation_end_date: string | null
           shif_number: string | null
           staff_id: string
           updated_at: string
@@ -1811,6 +1827,7 @@ export type Database = {
           bank_name?: string | null
           basic_salary?: number | null
           biometric_enroll_id?: string | null
+          branch_id?: string | null
           contract_end_date?: string | null
           created_at?: string
           date_joined?: string | null
@@ -1821,18 +1838,24 @@ export type Database = {
             | Database["public"]["Enums"]["employment_type"]
             | null
           full_name: string
+          gender?: string | null
+          grade_id?: string | null
           house_allowance?: number
           hr_status?: Database["public"]["Enums"]["hr_status"]
           id: string
           is_active?: boolean
           kra_pin?: string | null
           license_expiry_date?: string | null
+          manager_id?: string | null
           national_id?: string | null
           next_of_kin_name?: string | null
           next_of_kin_phone?: string | null
           nssf_number?: string | null
+          passport_no?: string | null
           phone?: string | null
+          position_id?: string | null
           practicing_license_no?: string | null
+          probation_end_date?: string | null
           shif_number?: string | null
           staff_id: string
           updated_at?: string
@@ -1845,6 +1868,7 @@ export type Database = {
           bank_name?: string | null
           basic_salary?: number | null
           biometric_enroll_id?: string | null
+          branch_id?: string | null
           contract_end_date?: string | null
           created_at?: string
           date_joined?: string | null
@@ -1855,23 +1879,58 @@ export type Database = {
             | Database["public"]["Enums"]["employment_type"]
             | null
           full_name?: string
+          gender?: string | null
+          grade_id?: string | null
           house_allowance?: number
           hr_status?: Database["public"]["Enums"]["hr_status"]
           id?: string
           is_active?: boolean
           kra_pin?: string | null
           license_expiry_date?: string | null
+          manager_id?: string | null
           national_id?: string | null
           next_of_kin_name?: string | null
           next_of_kin_phone?: string | null
           nssf_number?: string | null
+          passport_no?: string | null
           phone?: string | null
+          position_id?: string | null
           practicing_license_no?: string | null
+          probation_end_date?: string | null
           shif_number?: string | null
           staff_id?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_grade_id_fkey"
+            columns: ["grade_id"]
+            isOneToOne: false
+            referencedRelation: "job_grades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_position_id_fkey"
+            columns: ["position_id"]
+            isOneToOne: false
+            referencedRelation: "positions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       public_holidays: {
         Row: {
@@ -2366,9 +2425,9 @@ export type Database = {
         Args: { _employee_id: string; _year?: number }
         Returns: number
       }
-      clock_punch: { Args: { _kind: string }; Returns: Json }
+      clock_punch: { Args: { _type: string }; Returns: Json }
       compute_attendance_range: {
-        Args: { _end: string; _start: string }
+        Args: { _from: string; _to: string }
         Returns: Json
       }
       derive_attendance: { Args: { _period_id: string }; Returns: Json }
@@ -2409,7 +2468,7 @@ export type Database = {
         }
         Returns: boolean
       }
-      import_attendance_punches: { Args: { _rows: Json }; Returns: Json }
+      import_attendance_punches: { Args: { _punches: Json }; Returns: Json }
       is_department_head: {
         Args: { _department_id: string; _user_id: string }
         Returns: boolean
