@@ -19,6 +19,7 @@ import {
   Bell,
 } from 'lucide-react';
 import { PushToggle } from '@/components/notifications/PushToggle';
+import { HrDashboard } from '@/components/dashboard/HrDashboard';
 import { startOfWeek, addDays, format } from 'date-fns';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -36,7 +37,8 @@ const getShiftBadgeClass = (shift: ShiftCode | null): string => {
 
 export default function Dashboard() {
   const { user, profile, departments } = useAuth();
-  const { role, isHead, isAdmin, isSuperAdmin } = useRole();
+  const { role, isHead, isAdmin, isSuperAdmin, canViewPayroll } = useRole();
+  const showHrDashboard = isAdmin || isSuperAdmin || canViewPayroll;
   
   const [loading, setLoading] = useState(true);
   const [weekShifts, setWeekShifts] = useState<{ day: number; night: number }>({ day: 0, night: 0 });
@@ -134,7 +136,7 @@ export default function Dashboard() {
       title: 'Leave Requests',
       description: 'Review pending requests',
       icon: CheckCircle2,
-      link: '/leave-requests',
+      link: '/leave-admin',
       color: 'bg-primary/10 text-primary',
     });
   }
@@ -158,6 +160,8 @@ export default function Dashboard() {
           {role?.toLowerCase().replace('_', ' ') || 'Staff'}
         </Badge>
       </div>
+
+      {showHrDashboard && <HrDashboard />}
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-3">

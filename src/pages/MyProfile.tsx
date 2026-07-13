@@ -90,6 +90,7 @@ export default function MyProfile() {
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
           <ReadOnly label="Staff ID" value={readOnlyData?.staff_id} />
+          <ReadOnly label="Biometric Enroll ID" value={readOnlyData?.biometric_enroll_id ?? '—'} />
           <ReadOnly label="Full name" value={readOnlyData?.full_name} />
           <ReadOnly label="Email" value={readOnlyData?.email} />
           <ReadOnly label="Designation" value={readOnlyData?.designation} />

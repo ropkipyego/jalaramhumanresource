@@ -40,6 +40,8 @@ const LEAVE_TYPES: { value: LeaveType; label: string }[] = [
   { value: 'annual', label: 'Annual Leave' },
   { value: 'sick', label: 'Sick Leave' },
   { value: 'emergency', label: 'Emergency Leave' },
+  { value: 'compassionate', label: 'Compassionate Leave' },
+  { value: 'study', label: 'Study Leave' },
   { value: 'maternity', label: 'Maternity Leave' },
   { value: 'paternity', label: 'Paternity Leave' },
   { value: 'unpaid', label: 'Unpaid Leave' },

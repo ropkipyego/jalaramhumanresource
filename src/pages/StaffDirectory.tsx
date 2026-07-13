@@ -31,7 +31,8 @@ import {
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Users, Search, Edit, Shield, Building2, Loader2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Users, Search, Edit, Shield, Building2, Loader2, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Profile, Department, AppRole, EmployeeDepartment } from '@/types/database';
 
@@ -371,7 +372,9 @@ export default function StaffDirectory() {
                             .toUpperCase()}
                         </div>
                         <div>
-                          <div className="font-medium">{member.full_name}</div>
+                          <Link to={`/staff/${member.id}`} className="font-medium hover:underline">
+                            {member.full_name}
+                          </Link>
                           <div className="text-xs text-muted-foreground">{member.email}</div>
                         </div>
                       </div>
@@ -404,6 +407,13 @@ export default function StaffDirectory() {
                     {isAdmin && (
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
+                          {isAdmin && (
+                            <Button variant="ghost" size="icon" asChild title="View Employee Record">
+                              <Link to={`/staff/${member.id}`}>
+                                <ExternalLink className="h-4 w-4" />
+                              </Link>
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="icon"

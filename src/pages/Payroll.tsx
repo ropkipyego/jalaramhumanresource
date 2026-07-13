@@ -108,12 +108,10 @@ export default function Payroll() {
 
       <Alert>
         <ShieldAlert className="h-4 w-4" />
-        <AlertTitle>Payroll engine — Phase 2</AlertTitle>
+        <AlertTitle>Kenya payroll engine live</AlertTitle>
         <AlertDescription>
-          Statutory calculation (PAYE, NSSF, SHIF, Housing Levy), payslip generation and bank export are being rolled out
-          in Phase 2. In Phase 1 you can create periods, capture employee compliance data (KRA PIN, NSSF, SHIF, basic
-          salary), review statutory rates, and prepare for approval workflow. Every change is logged in the payroll audit
-          trail.
+          PAYE, NSSF, SHIF, Housing Levy, overtime, night/PH allowances, and active loan deductions are calculated
+          automatically. Staff can view payslips under My Payslips. Export bank CSV after Finance approval.
         </AlertDescription>
       </Alert>
 

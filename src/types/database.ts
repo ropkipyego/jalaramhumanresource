@@ -3,6 +3,8 @@
 
 export type AppRole = 'STAFF' | 'HEAD' | 'ADMIN' | 'SUPER_ADMIN' | 'FINANCE_ADMIN';
 
+export type Gender = 'MALE' | 'FEMALE' | 'OTHER' | 'PREFER_NOT_TO_SAY';
+
 export type EmploymentType = 'PERMANENT' | 'CONTRACT' | 'LOCUM' | 'INTERN';
 export type HrStatus = 'ACTIVE' | 'SUSPENDED' | 'ON_LEAVE' | 'TERMINATED';
 export type PayrollPeriodStatus =
@@ -11,7 +13,9 @@ export type PayrollLineKind = 'EARNING' | 'DEDUCTION' | 'EMPLOYER_CONTRIB';
 export type StatutoryRateType =
   | 'PAYE_BAND' | 'NSSF_TIER1' | 'NSSF_TIER2' | 'SHIF' | 'HOUSING_LEVY' | 'PERSONAL_RELIEF';
 
-export type LeaveType = 'annual' | 'sick' | 'emergency' | 'maternity' | 'paternity' | 'unpaid' | 'other';
+export type LeaveType =
+  | 'annual' | 'sick' | 'emergency' | 'maternity' | 'paternity'
+  | 'unpaid' | 'other' | 'compassionate' | 'study';
 
 export type LeaveStatus = 'pending' | 'approved' | 'rejected' | 'returned';
 
@@ -29,6 +33,58 @@ export interface Department {
   updated_at: string;
 }
 
+export interface OrganizationSettings {
+  id: boolean;
+  name: string;
+  logo_url: string | null;
+  kra_pin: string | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  website: string | null;
+  updated_at: string;
+  updated_by: string | null;
+}
+
+export interface Branch {
+  id: string;
+  name: string;
+  code: string;
+  address: string | null;
+  phone: string | null;
+  email: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface JobGrade {
+  id: string;
+  name: string;
+  code: string;
+  level: number;
+  min_salary: number | null;
+  max_salary: number | null;
+  description: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Position {
+  id: string;
+  title: string;
+  code: string;
+  department_id: string | null;
+  grade_id: string | null;
+  description: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  department?: Department;
+  grade?: JobGrade;
+}
+
 export interface Profile {
   id: string;
   staff_id: string;
@@ -37,6 +93,14 @@ export interface Profile {
   phone: string | null;
   avatar_url: string | null;
   is_active: boolean;
+  branch_id?: string | null;
+  position_id?: string | null;
+  grade_id?: string | null;
+  manager_id?: string | null;
+  gender?: Gender | null;
+  date_of_birth?: string | null;
+  passport_no?: string | null;
+  probation_end_date?: string | null;
   created_at: string;
   updated_at: string;
 }

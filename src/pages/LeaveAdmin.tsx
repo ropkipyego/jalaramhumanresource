@@ -225,7 +225,7 @@ const LeaveAdmin = () => {
   };
 
   const getLeaveTypeBadge = (type: LeaveType) => {
-    const styles: Record<LeaveType, string> = {
+    const styles: Record<string, string> = {
       annual: "bg-blue-500/10 text-blue-600 border-blue-500/20",
       sick: "bg-orange-500/10 text-orange-600 border-orange-500/20",
       emergency: "bg-red-500/10 text-red-600 border-red-500/20",
@@ -233,8 +233,10 @@ const LeaveAdmin = () => {
       paternity: "bg-cyan-500/10 text-cyan-600 border-cyan-500/20",
       unpaid: "bg-gray-500/10 text-gray-600 border-gray-500/20",
       other: "bg-purple-500/10 text-purple-600 border-purple-500/20",
+      compassionate: "bg-amber-500/10 text-amber-700 border-amber-500/20",
+      study: "bg-indigo-500/10 text-indigo-600 border-indigo-500/20",
     };
-    return <Badge className={styles[type]}>{type.charAt(0).toUpperCase() + type.slice(1)}</Badge>;
+    return <Badge className={styles[type] || styles.other}>{type.charAt(0).toUpperCase() + type.slice(1)}</Badge>;
   };
 
   const getDaysCount = (start: string, end: string) => {

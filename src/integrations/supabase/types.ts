@@ -95,6 +95,216 @@ export type Database = {
         }
         Relationships: []
       }
+      attendance_daily: {
+        Row: {
+          approval_status: Database["public"]["Enums"]["attendance_approval_status"]
+          approved_at: string | null
+          approved_by: string | null
+          batch_id: string | null
+          computed_at: string
+          early_leave_minutes: number
+          employee_id: string
+          expected_end: string | null
+          expected_shift_code: string | null
+          expected_start: string | null
+          first_in: string | null
+          holiday_minutes: number
+          id: string
+          last_out: string | null
+          late_minutes: number
+          night_minutes: number
+          notes: string | null
+          ot_minutes: number
+          shift_template_id: string | null
+          status: Database["public"]["Enums"]["attendance_day_status"]
+          weekend_minutes: number
+          work_date: string
+          worked_minutes: number
+        }
+        Insert: {
+          approval_status?: Database["public"]["Enums"]["attendance_approval_status"]
+          approved_at?: string | null
+          approved_by?: string | null
+          batch_id?: string | null
+          computed_at?: string
+          early_leave_minutes?: number
+          employee_id: string
+          expected_end?: string | null
+          expected_shift_code?: string | null
+          expected_start?: string | null
+          first_in?: string | null
+          holiday_minutes?: number
+          id?: string
+          last_out?: string | null
+          late_minutes?: number
+          night_minutes?: number
+          notes?: string | null
+          ot_minutes?: number
+          shift_template_id?: string | null
+          status?: Database["public"]["Enums"]["attendance_day_status"]
+          weekend_minutes?: number
+          work_date: string
+          worked_minutes?: number
+        }
+        Update: {
+          approval_status?: Database["public"]["Enums"]["attendance_approval_status"]
+          approved_at?: string | null
+          approved_by?: string | null
+          batch_id?: string | null
+          computed_at?: string
+          early_leave_minutes?: number
+          employee_id?: string
+          expected_end?: string | null
+          expected_shift_code?: string | null
+          expected_start?: string | null
+          first_in?: string | null
+          holiday_minutes?: number
+          id?: string
+          last_out?: string | null
+          late_minutes?: number
+          night_minutes?: number
+          notes?: string | null
+          ot_minutes?: number
+          shift_template_id?: string | null
+          status?: Database["public"]["Enums"]["attendance_day_status"]
+          weekend_minutes?: number
+          work_date?: string
+          worked_minutes?: number
+        }
+        Relationships: []
+      }
+      attendance_exceptions: {
+        Row: {
+          created_at: string
+          daily_id: string | null
+          description: string
+          employee_id: string
+          exception_type: Database["public"]["Enums"]["attendance_exception_type"]
+          id: string
+          resolved: boolean
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          work_date: string
+        }
+        Insert: {
+          created_at?: string
+          daily_id?: string | null
+          description: string
+          employee_id: string
+          exception_type: Database["public"]["Enums"]["attendance_exception_type"]
+          id?: string
+          resolved?: boolean
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          work_date: string
+        }
+        Update: {
+          created_at?: string
+          daily_id?: string | null
+          description?: string
+          employee_id?: string
+          exception_type?: Database["public"]["Enums"]["attendance_exception_type"]
+          id?: string
+          resolved?: boolean
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          work_date?: string
+        }
+        Relationships: []
+      }
+      attendance_import_batches: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          date_from: string | null
+          date_to: string | null
+          error_rows: number
+          errors_json: Json
+          file_name: string
+          id: string
+          imported_by: string | null
+          inserted_rows: number
+          skipped_rows: number
+          status: Database["public"]["Enums"]["import_batch_status"]
+          total_rows: number
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          date_from?: string | null
+          date_to?: string | null
+          error_rows?: number
+          errors_json?: Json
+          file_name: string
+          id?: string
+          imported_by?: string | null
+          inserted_rows?: number
+          skipped_rows?: number
+          status?: Database["public"]["Enums"]["import_batch_status"]
+          total_rows?: number
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          date_from?: string | null
+          date_to?: string | null
+          error_rows?: number
+          errors_json?: Json
+          file_name?: string
+          id?: string
+          imported_by?: string | null
+          inserted_rows?: number
+          skipped_rows?: number
+          status?: Database["public"]["Enums"]["import_batch_status"]
+          total_rows?: number
+        }
+        Relationships: []
+      }
+      attendance_punches: {
+        Row: {
+          batch_id: string | null
+          created_at: string
+          device_id: string | null
+          employee_id: string
+          id: string
+          notes: string | null
+          punch_at: string
+          punch_date: string
+          punch_type: Database["public"]["Enums"]["punch_type"]
+          raw_staff_id: string | null
+          source: Database["public"]["Enums"]["punch_source"]
+        }
+        Insert: {
+          batch_id?: string | null
+          created_at?: string
+          device_id?: string | null
+          employee_id: string
+          id?: string
+          notes?: string | null
+          punch_at: string
+          punch_date: string
+          punch_type: Database["public"]["Enums"]["punch_type"]
+          raw_staff_id?: string | null
+          source?: Database["public"]["Enums"]["punch_source"]
+        }
+        Update: {
+          batch_id?: string | null
+          created_at?: string
+          device_id?: string | null
+          employee_id?: string
+          id?: string
+          notes?: string | null
+          punch_at?: string
+          punch_date?: string
+          punch_type?: Database["public"]["Enums"]["punch_type"]
+          raw_staff_id?: string | null
+          source?: Database["public"]["Enums"]["punch_source"]
+        }
+        Relationships: []
+      }
       audit_logs: {
         Row: {
           action: string
@@ -128,6 +338,216 @@ export type Database = {
           record_id?: string | null
           table_name?: string
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      branches: {
+        Row: {
+          address: string | null
+          code: string
+          created_at: string
+          email: string | null
+          id: string
+          is_active: boolean
+          name: string
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          code: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          code?: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      employee_onboarding_items: {
+        Row: {
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          employee_id: string
+          id: string
+          is_completed: boolean
+          notes: string | null
+          template_id: string | null
+          title: string
+        }
+        Insert: {
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          employee_id: string
+          id?: string
+          is_completed?: boolean
+          notes?: string | null
+          template_id?: string | null
+          title: string
+        }
+        Update: {
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          employee_id?: string
+          id?: string
+          is_completed?: boolean
+          notes?: string | null
+          template_id?: string | null
+          title?: string
+        }
+        Relationships: []
+      }
+      job_grades: {
+        Row: {
+          code: string
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          level: number
+          max_salary: number | null
+          min_salary: number | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          level?: number
+          max_salary?: number | null
+          min_salary?: number | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          level?: number
+          max_salary?: number | null
+          min_salary?: number | null
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      onboarding_checklist_templates: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          sort_order: number
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          sort_order?: number
+          title: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          sort_order?: number
+          title?: string
+        }
+        Relationships: []
+      }
+      organization_settings: {
+        Row: {
+          address: string | null
+          email: string | null
+          id: boolean
+          kra_pin: string | null
+          logo_url: string | null
+          name: string
+          phone: string | null
+          updated_at: string
+          updated_by: string | null
+          website: string | null
+        }
+        Insert: {
+          address?: string | null
+          email?: string | null
+          id?: boolean
+          kra_pin?: string | null
+          logo_url?: string | null
+          name?: string
+          phone?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          email?: string | null
+          id?: boolean
+          kra_pin?: string | null
+          logo_url?: string | null
+          name?: string
+          phone?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          website?: string | null
+        }
+        Relationships: []
+      }
+      positions: {
+        Row: {
+          code: string
+          created_at: string
+          department_id: string | null
+          description: string | null
+          grade_id: string | null
+          id: string
+          is_active: boolean
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          department_id?: string | null
+          description?: string | null
+          grade_id?: string | null
+          id?: string
+          is_active?: boolean
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          department_id?: string | null
+          description?: string | null
+          grade_id?: string | null
+          id?: string
+          is_active?: boolean
+          title?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -679,25 +1099,34 @@ export type Database = {
           bank_branch: string | null
           bank_name: string | null
           basic_salary: number | null
+          biometric_enroll_id: string | null
+          branch_id: string | null
           contract_end_date: string | null
           created_at: string
           date_joined: string | null
+          date_of_birth: string | null
           designation: string | null
           email: string
           employment_type: Database["public"]["Enums"]["employment_type"] | null
           full_name: string
+          gender: Database["public"]["Enums"]["gender"] | null
+          grade_id: string | null
           house_allowance: number
           hr_status: Database["public"]["Enums"]["hr_status"]
           id: string
           is_active: boolean
           kra_pin: string | null
           license_expiry_date: string | null
+          manager_id: string | null
           national_id: string | null
           next_of_kin_name: string | null
           next_of_kin_phone: string | null
           nssf_number: string | null
+          passport_no: string | null
           phone: string | null
+          position_id: string | null
           practicing_license_no: string | null
+          probation_end_date: string | null
           shif_number: string | null
           staff_id: string
           updated_at: string
@@ -709,27 +1138,35 @@ export type Database = {
           bank_branch?: string | null
           bank_name?: string | null
           basic_salary?: number | null
+          branch_id?: string | null
           contract_end_date?: string | null
           created_at?: string
           date_joined?: string | null
+          date_of_birth?: string | null
           designation?: string | null
           email: string
           employment_type?:
             | Database["public"]["Enums"]["employment_type"]
             | null
           full_name: string
+          gender?: Database["public"]["Enums"]["gender"] | null
+          grade_id?: string | null
           house_allowance?: number
           hr_status?: Database["public"]["Enums"]["hr_status"]
           id: string
           is_active?: boolean
           kra_pin?: string | null
           license_expiry_date?: string | null
+          manager_id?: string | null
           national_id?: string | null
           next_of_kin_name?: string | null
           next_of_kin_phone?: string | null
           nssf_number?: string | null
+          passport_no?: string | null
           phone?: string | null
+          position_id?: string | null
           practicing_license_no?: string | null
+          probation_end_date?: string | null
           shif_number?: string | null
           staff_id: string
           updated_at?: string
@@ -741,27 +1178,35 @@ export type Database = {
           bank_branch?: string | null
           bank_name?: string | null
           basic_salary?: number | null
+          branch_id?: string | null
           contract_end_date?: string | null
           created_at?: string
           date_joined?: string | null
+          date_of_birth?: string | null
           designation?: string | null
           email?: string
           employment_type?:
             | Database["public"]["Enums"]["employment_type"]
             | null
           full_name?: string
+          gender?: Database["public"]["Enums"]["gender"] | null
+          grade_id?: string | null
           house_allowance?: number
           hr_status?: Database["public"]["Enums"]["hr_status"]
           id?: string
           is_active?: boolean
           kra_pin?: string | null
           license_expiry_date?: string | null
+          manager_id?: string | null
           national_id?: string | null
           next_of_kin_name?: string | null
           next_of_kin_phone?: string | null
           nssf_number?: string | null
+          passport_no?: string | null
           phone?: string | null
+          position_id?: string | null
           practicing_license_no?: string | null
+          probation_end_date?: string | null
           shif_number?: string | null
           staff_id?: string
           updated_at?: string
@@ -1080,6 +1525,15 @@ export type Database = {
     }
     Functions: {
       calculate_payroll: { Args: { _period_id: string }; Returns: Json }
+      clock_punch: { Args: { _type?: Database["public"]["Enums"]["punch_type"] }; Returns: Json }
+      compute_attendance_range: {
+        Args: { _from: string; _to: string; _employee_id?: string | null }
+        Returns: Json
+      }
+      import_attendance_punches: {
+        Args: { _punches: Json; _file_name: string; _imported_by?: string }
+        Returns: Json
+      }
       calculate_used_leave_days: {
         Args: { _employee_id: string; _year?: number }
         Returns: number
@@ -1126,6 +1580,7 @@ export type Database = {
         Args: { _department_id: string; _user_id: string }
         Returns: boolean
       }
+      resolve_employee_by_identifier: { Args: { _id: string }; Returns: string }
       log_audit: {
         Args: {
           _action: string
@@ -1139,7 +1594,14 @@ export type Database = {
     }
     Enums: {
       app_role: "STAFF" | "HEAD" | "ADMIN" | "SUPER_ADMIN" | "FINANCE_ADMIN"
+      attendance_approval_status: "PENDING" | "APPROVED" | "REJECTED"
+      attendance_day_status: "PRESENT" | "LATE" | "PARTIAL" | "ABSENT" | "ON_LEAVE" | "OFF" | "HOLIDAY"
+      attendance_exception_type: "LATE" | "ABSENT" | "EARLY_LEAVE" | "MISSING_OUT" | "MISSING_IN" | "OT_PENDING" | "UNMATCHED_STAFF" | "DUPLICATE_PUNCH"
+      import_batch_status: "PENDING" | "COMPLETED" | "FAILED"
+      punch_source: "BIOMETRIC" | "MANUAL" | "WEB"
+      punch_type: "IN" | "OUT"
       employment_type: "PERMANENT" | "CONTRACT" | "LOCUM" | "INTERN"
+      gender: "MALE" | "FEMALE" | "OTHER" | "PREFER_NOT_TO_SAY"
       holiday_scope: "NATIONAL" | "HOSPITAL" | "COUNTY" | "CUSTOM"
       hr_status: "ACTIVE" | "SUSPENDED" | "ON_LEAVE" | "TERMINATED"
       leave_status: "pending" | "approved" | "rejected" | "returned"
@@ -1151,6 +1613,8 @@ export type Database = {
         | "paternity"
         | "unpaid"
         | "other"
+        | "compassionate"
+        | "study"
       payroll_line_kind: "EARNING" | "DEDUCTION" | "EMPLOYER_CONTRIB"
       payroll_period_status:
         | "DRAFT"

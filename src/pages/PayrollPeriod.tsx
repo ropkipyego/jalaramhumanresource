@@ -101,6 +101,51 @@ export default function PayrollPeriod() {
     URL.revokeObjectURL(url);
   };
 
+  const exportStatutoryCsv = async (kind: 'PAYE' | 'NSSF' | 'SHIF') => {
+    if (runs.length === 0) { toast.error('No runs to export'); return; }
+    const { data: items } = await supabase
+      .from('payroll_line_items')
+      .select('run_id, code, amount')
+      .in('run_id', runs.map((r) => r.id));
+    const byRun = new Map<string, Record<string, number>>();
+    (items || []).forEach((i: any) => {
+      const m = byRun.get(i.run_id) || {};
+      m[i.code] = Number(i.amount) || 0;
+      byRun.set(i.run_id, m);
+    });
+    const ref = `${kind}-${period.period_year}-${String(period.period_month).padStart(2, '0')}`;
+    let header: string[];
+    let rows: (string | number)[][];
+    if (kind === 'PAYE') {
+      header = ['Staff ID', 'Name', 'KRA PIN', 'Gross', 'PAYE', 'Period'];
+      rows = runs.map((r) => {
+        const m = byRun.get(r.id) || {};
+        return [r.employee?.staff_id ?? '', r.employee?.full_name ?? '', r.employee?.kra_pin ?? '',
+          (r.gross_earnings ?? 0).toFixed(2), (m.PAYE ?? 0).toFixed(2), ref];
+      });
+    } else if (kind === 'NSSF') {
+      header = ['Staff ID', 'Name', 'NSSF Employee', 'NSSF Employer', 'Period'];
+      rows = runs.map((r) => {
+        const m = byRun.get(r.id) || {};
+        return [r.employee?.staff_id ?? '', r.employee?.full_name ?? '',
+          (m.NSSF ?? 0).toFixed(2), (m.NSSF_ER ?? 0).toFixed(2), ref];
+      });
+    } else {
+      header = ['Staff ID', 'Name', 'SHIF', 'Period'];
+      rows = runs.map((r) => {
+        const m = byRun.get(r.id) || {};
+        return [r.employee?.staff_id ?? '', r.employee?.full_name ?? '', (m.SHIF ?? 0).toFixed(2), ref];
+      });
+    }
+    const csv = [header, ...rows].map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `${kind.toLowerCase()}-report-${ref}.csv`; a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`${kind} report downloaded`);
+  };
+
   const s = period.status;
   const isHrAdmin = hasRole('ADMIN');
   const canLockAtt = isHrAdmin && s === 'DRAFT';
@@ -157,9 +202,14 @@ export default function PayrollPeriod() {
             </Button>
           )}
           {canExport && (
-            <Button variant="outline" onClick={exportBankCsv}>
-              <Download className="mr-2 h-4 w-4" /> Bank CSV
-            </Button>
+            <>
+              <Button variant="outline" onClick={exportBankCsv}>
+                <Download className="mr-2 h-4 w-4" /> Bank CSV
+              </Button>
+              <Button variant="outline" onClick={() => exportStatutoryCsv('PAYE')}>PAYE</Button>
+              <Button variant="outline" onClick={() => exportStatutoryCsv('NSSF')}>NSSF</Button>
+              <Button variant="outline" onClick={() => exportStatutoryCsv('SHIF')}>SHIF</Button>
+            </>
           )}
         </div>
       </div>
