@@ -57,15 +57,7 @@ export type Database = {
           title?: string
           updated_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "announcements_published_by_fkey"
-            columns: ["published_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       app_settings: {
         Row: {
@@ -190,13 +182,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "asset_assignments_assigned_by_fkey"
-            columns: ["assigned_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "asset_assignments_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
@@ -258,16 +243,16 @@ export type Database = {
           approval_status: string
           approved_at: string | null
           approved_by: string | null
-          clock_in: string | null
-          clock_out: string | null
           created_at: string
           early_minutes: number | null
           employee_id: string
-          expected_shift: string | null
+          expected_shift_code: string | null
+          first_in: string | null
           id: string
+          last_out: string | null
           late_minutes: number | null
           notes: string | null
-          overtime_minutes: number | null
+          ot_minutes: number | null
           shift_template_id: string | null
           source: string | null
           status: string
@@ -279,16 +264,16 @@ export type Database = {
           approval_status?: string
           approved_at?: string | null
           approved_by?: string | null
-          clock_in?: string | null
-          clock_out?: string | null
           created_at?: string
           early_minutes?: number | null
           employee_id: string
-          expected_shift?: string | null
+          expected_shift_code?: string | null
+          first_in?: string | null
           id?: string
+          last_out?: string | null
           late_minutes?: number | null
           notes?: string | null
-          overtime_minutes?: number | null
+          ot_minutes?: number | null
           shift_template_id?: string | null
           source?: string | null
           status?: string
@@ -300,16 +285,16 @@ export type Database = {
           approval_status?: string
           approved_at?: string | null
           approved_by?: string | null
-          clock_in?: string | null
-          clock_out?: string | null
           created_at?: string
           early_minutes?: number | null
           employee_id?: string
-          expected_shift?: string | null
+          expected_shift_code?: string | null
+          first_in?: string | null
           id?: string
+          last_out?: string | null
           late_minutes?: number | null
           notes?: string | null
-          overtime_minutes?: number | null
+          ot_minutes?: number | null
           shift_template_id?: string | null
           source?: string | null
           status?: string
@@ -318,13 +303,6 @@ export type Database = {
           worked_minutes?: number | null
         }
         Relationships: [
-          {
-            foreignKeyName: "attendance_daily_approved_by_fkey"
-            columns: ["approved_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "attendance_daily_employee_id_fkey"
             columns: ["employee_id"]
@@ -385,13 +363,6 @@ export type Database = {
           {
             foreignKeyName: "attendance_exceptions_employee_id_fkey"
             columns: ["employee_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "attendance_exceptions_resolved_by_fkey"
-            columns: ["resolved_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -667,13 +638,6 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "disciplinary_records_issued_by_fkey"
-            columns: ["issued_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
         ]
       }
       employee_departments: {
@@ -769,13 +733,6 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "employee_documents_uploaded_by_fkey"
-            columns: ["uploaded_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
         ]
       }
       employee_loans: {
@@ -838,13 +795,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "employee_loans_approved_by_fkey"
-            columns: ["approved_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "employee_loans_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
@@ -861,10 +811,12 @@ export type Database = {
           due_date: string | null
           employee_id: string
           id: string
-          item_name: string
+          is_completed: boolean
+          item_name: string | null
           notes: string | null
           status: string
           template_id: string | null
+          title: string | null
           updated_at: string
         }
         Insert: {
@@ -874,10 +826,12 @@ export type Database = {
           due_date?: string | null
           employee_id: string
           id?: string
-          item_name: string
+          is_completed?: boolean
+          item_name?: string | null
           notes?: string | null
           status?: string
           template_id?: string | null
+          title?: string | null
           updated_at?: string
         }
         Update: {
@@ -887,20 +841,15 @@ export type Database = {
           due_date?: string | null
           employee_id?: string
           id?: string
-          item_name?: string
+          is_completed?: boolean
+          item_name?: string | null
           notes?: string | null
           status?: string
           template_id?: string | null
+          title?: string | null
           updated_at?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "employee_onboarding_items_completed_by_fkey"
-            columns: ["completed_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "employee_onboarding_items_employee_id_fkey"
             columns: ["employee_id"]
@@ -1108,13 +1057,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "leave_encashment_requests_approved_by_fkey"
-            columns: ["approved_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "leave_encashment_requests_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
@@ -1280,13 +1222,6 @@ export type Database = {
             referencedRelation: "employee_loans"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "loan_repayments_recorded_by_fkey"
-            columns: ["recorded_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
         ]
       }
       notifications: {
@@ -1384,6 +1319,7 @@ export type Database = {
           is_active: boolean
           items: Json
           name: string
+          title: string | null
           updated_at: string
         }
         Insert: {
@@ -1393,6 +1329,7 @@ export type Database = {
           is_active?: boolean
           items?: Json
           name: string
+          title?: string | null
           updated_at?: string
         }
         Update: {
@@ -1402,6 +1339,7 @@ export type Database = {
           is_active?: boolean
           items?: Json
           name?: string
+          title?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -1779,13 +1717,6 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "performance_reviews_reviewer_id_fkey"
-            columns: ["reviewer_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
         ]
       }
       positions: {
@@ -1847,9 +1778,11 @@ export type Database = {
           bank_branch: string | null
           bank_name: string | null
           basic_salary: number | null
+          biometric_enroll_id: string | null
           contract_end_date: string | null
           created_at: string
           date_joined: string | null
+          date_of_birth: string | null
           designation: string | null
           email: string
           employment_type: Database["public"]["Enums"]["employment_type"] | null
@@ -1877,9 +1810,11 @@ export type Database = {
           bank_branch?: string | null
           bank_name?: string | null
           basic_salary?: number | null
+          biometric_enroll_id?: string | null
           contract_end_date?: string | null
           created_at?: string
           date_joined?: string | null
+          date_of_birth?: string | null
           designation?: string | null
           email: string
           employment_type?:
@@ -1909,9 +1844,11 @@ export type Database = {
           bank_branch?: string | null
           bank_name?: string | null
           basic_salary?: number | null
+          biometric_enroll_id?: string | null
           contract_end_date?: string | null
           created_at?: string
           date_joined?: string | null
+          date_of_birth?: string | null
           designation?: string | null
           email?: string
           employment_type?:
@@ -2159,13 +2096,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "shift_swap_requests_approved_by_fkey"
-            columns: ["approved_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "shift_swap_requests_department_id_fkey"
             columns: ["department_id"]
             isOneToOne: false
@@ -2175,13 +2105,6 @@ export type Database = {
           {
             foreignKeyName: "shift_swap_requests_requester_id_fkey"
             columns: ["requester_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "shift_swap_requests_target_id_fkey"
-            columns: ["target_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -2418,13 +2341,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "vacancies_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "vacancies_department_id_fkey"
             columns: ["department_id"]
             isOneToOne: false
@@ -2449,6 +2365,11 @@ export type Database = {
       calculate_used_leave_days: {
         Args: { _employee_id: string; _year?: number }
         Returns: number
+      }
+      clock_punch: { Args: { _kind: string }; Returns: Json }
+      compute_attendance_range: {
+        Args: { _end: string; _start: string }
+        Returns: Json
       }
       derive_attendance: { Args: { _period_id: string }; Returns: Json }
       get_head_departments: { Args: { _user_id: string }; Returns: string[] }
@@ -2488,6 +2409,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      import_attendance_punches: { Args: { _rows: Json }; Returns: Json }
       is_department_head: {
         Args: { _department_id: string; _user_id: string }
         Returns: boolean
