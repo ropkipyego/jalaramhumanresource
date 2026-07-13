@@ -2498,6 +2498,8 @@ export type Database = {
         | "paternity"
         | "unpaid"
         | "other"
+        | "compassionate"
+        | "study"
       payroll_line_kind: "EARNING" | "DEDUCTION" | "EMPLOYER_CONTRIB"
       payroll_period_status:
         | "DRAFT"
@@ -2655,6 +2657,8 @@ export const Constants = {
         "paternity",
         "unpaid",
         "other",
+        "compassionate",
+        "study",
       ],
       payroll_line_kind: ["EARNING", "DEDUCTION", "EMPLOYER_CONTRIB"],
       payroll_period_status: [
