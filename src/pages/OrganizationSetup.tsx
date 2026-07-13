@@ -31,10 +31,10 @@ export default function OrganizationSetup() {
     (async () => {
       setLoading(true);
       const [orgRes, branchRes] = await Promise.all([
-        supabase.from("organization_settings").select("*").eq("id", true).maybeSingle(),
+        supabase.from("organization_settings").select("*").limit(1).maybeSingle(),
         supabase.from("branches").select("*").order("name"),
       ]);
-      if (orgRes.data) setOrg(orgRes.data as OrganizationSettings);
+      if (orgRes.data) setOrg(orgRes.data as unknown as OrganizationSettings);
       setBranches((branchRes.data as Branch[]) || []);
       setLoading(false);
     })();
@@ -45,9 +45,9 @@ export default function OrganizationSetup() {
   const saveOrg = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    const { error } = await supabase.from("organization_settings").upsert({
-      id: true,
+    const payload: Record<string, any> = {
       name: org.name?.trim() || "Jalaram Hospital",
+      organization_name: org.name?.trim() || "Jalaram Hospital",
       logo_url: org.logo_url || null,
       kra_pin: org.kra_pin || null,
       phone: org.phone || null,
@@ -55,7 +55,9 @@ export default function OrganizationSetup() {
       address: org.address || null,
       website: org.website || null,
       updated_by: user?.id || null,
-    });
+    };
+    if ((org as any).id) payload.id = (org as any).id;
+    const { error } = await supabase.from("organization_settings").upsert(payload);
     setSaving(false);
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
     else toast({ title: "Organization settings saved" });
