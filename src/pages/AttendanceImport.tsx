@@ -128,16 +128,21 @@ export default function AttendanceImport() {
 
       <Alert>
         <Info className="h-4 w-4" />
-        <AlertTitle>Supported formats</AlertTitle>
+        <AlertTitle>Primary format: ZKTeco "Attendance Record Report" (monthly matrix)</AlertTitle>
         <AlertDescription>
+          Export directly from your biometric device (Attendance → Reports → Attendance Record Report → Export to Excel) and upload here. The parser reads the
+          date range, day-of-month row, and every "ID: … Name: …" block automatically — concatenated punches like <code>08:1318:04</code> or triple punches
+          like <code>08:2618:5618:59</code> are split correctly and alternated IN / OUT.
           <ul className="list-disc pl-5 mt-2 space-y-1 text-sm">
             {SUPPORTED_FORMATS.map((f) => (
               <li key={f.name}><strong>{f.name}:</strong> {f.columns}</li>
             ))}
           </ul>
-          Staff are matched by <strong>Staff ID</strong> or <strong>Biometric Enroll ID</strong> on their profile.
+          Staff are matched by <strong>Biometric Enroll ID</strong> (the number under "ID:" in the file) or <strong>Staff ID</strong>, and finally by full name.
+          Set each staff member's enroll ID on their profile so imports match automatically.
         </AlertDescription>
       </Alert>
+
 
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-1">

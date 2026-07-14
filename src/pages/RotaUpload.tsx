@@ -94,14 +94,36 @@ export default function RotaUpload() {
 
   const normalizeCode = (raw: unknown): ShiftCode | null | 'INVALID' => {
     if (raw === null || raw === undefined) return null;
-    const s = String(raw).trim().toUpperCase();
+    const s = String(raw).trim().toUpperCase().replace(/\s+/g, '');
     if (!s || s === '-' || s === '—') return null;
     if (VALID_CODES.includes(s as ShiftCode)) return s as ShiftCode;
-    if (['DAY'].includes(s)) return 'D';
-    if (['NIGHT'].includes(s)) return 'N';
-    if (['REST', 'O'].includes(s)) return 'OFF';
-    if (['HOLIDAY', 'HOL'].includes(s)) return 'PH';
+    // Common department variants
+    if (['DAY', '6AM', '8AM', '7AM', '9AM', 'AM', 'MORNING', 'M'].includes(s)) return 'D';
+    if (['NIGHT', 'PM', 'EVENING', 'NGT'].includes(s)) return 'N';
+    if (['REST', 'O', 'X', 'RESTDAY', 'LEAVE', 'L', 'A'].includes(s)) return 'OFF';
+    if (['HOLIDAY', 'HOL', 'H'].includes(s)) return 'PH';
+    if (['D/N', 'DN', 'N/D', 'ND'].includes(s)) return 'D'; // double shift → count as day
     return 'INVALID';
+  };
+
+  /** Detect the "cumulative rota" matrix layout used by departments:
+   *  a row starting with "DAYS", a following row starting with "DATES" (day-of-month numbers),
+   *  then a "NAMES" separator, then name-per-row + codes per day column.
+   */
+  const detectMatrix = (aoa: any[][]) => {
+    for (let r = 0; r < Math.min(aoa.length, 15); r++) {
+      const first = String(aoa[r]?.[0] ?? '').trim().toUpperCase();
+      if (first === 'DAYS' || first === 'DAY') {
+        const datesRow = aoa[r + 1] || [];
+        const dateCols: { col: number; day: number }[] = [];
+        for (let c = 1; c < datesRow.length; c++) {
+          const n = Number(datesRow[c]);
+          if (Number.isInteger(n) && n >= 1 && n <= 31) dateCols.push({ col: c, day: n });
+        }
+        if (dateCols.length >= 20) return { headerRow: r, datesRow: r + 1, dateCols };
+      }
+    }
+    return null;
   };
 
   const handleFile = async (file: File) => {
@@ -114,9 +136,65 @@ export default function RotaUpload() {
       toast.error('Sheet appears empty.');
       return;
     }
-    const dataRows = aoa.slice(1);
+
+    const matrix = detectMatrix(aoa);
     const out: ParsedRow[] = [];
 
+    if (matrix) {
+      // Month/year from the current monthStart selection
+      const ms = new Date(monthStart + 'T00:00:00');
+      const year = ms.getFullYear();
+      const month = ms.getMonth();
+
+      // Data rows start after the "NAMES" separator (or two rows past DATES)
+      let dataStart = matrix.datesRow + 1;
+      for (let r = matrix.datesRow + 1; r < Math.min(aoa.length, matrix.datesRow + 4); r++) {
+        const first = String(aoa[r]?.[0] ?? '').trim().toUpperCase();
+        if (first === 'NAMES' || first === 'NAME') { dataStart = r + 1; break; }
+      }
+
+      for (let r = dataStart; r < aoa.length; r++) {
+        const row = aoa[r] || [];
+        const name = String(row[0] ?? '').trim();
+        if (!name) continue;
+        // Stop at legend / annotation rows
+        const upper = name.toUpperCase();
+        if (['DAY SHIFTS', 'NIGHT SHIFTS', 'LEGEND', 'NB', 'NOTE', 'NOTES', 'START:', 'END'].includes(upper)) break;
+
+        const match = employees.find(
+          (e) => e.full_name.toLowerCase() === name.toLowerCase() ||
+                 e.staff_id.toLowerCase() === name.toLowerCase() ||
+                 e.full_name.toLowerCase().startsWith(name.toLowerCase() + ' ') ||
+                 name.toLowerCase().startsWith(e.full_name.toLowerCase().split(' ')[0])
+        );
+        const shifts: ParsedShift[] = [];
+        let invalidCount = 0;
+        for (const { col, day } of matrix.dateCols) {
+          const code = normalizeCode(row[col]);
+          if (code === 'INVALID') invalidCount++;
+          else if (code) {
+            const d = new Date(year, month, day);
+            shifts.push({ date: format(d, 'yyyy-MM-dd'), shift: code });
+          }
+        }
+        out.push({
+          staffId: match?.staff_id || '',
+          name,
+          matchedEmployeeId: match?.id || null,
+          shifts,
+          invalidCount,
+          error: !match ? `No matching staff in this department (name "${name}")`
+                : invalidCount ? `${invalidCount} unrecognised code(s)` : undefined,
+        });
+      }
+      const matched = out.filter((r) => r.matchedEmployeeId).length;
+      toast.success(`Matrix rota parsed — ${out.length} rows, ${matched} matched. Using ${format(ms, 'MMMM yyyy')}.`);
+      setParsed(out);
+      return;
+    }
+
+    // Fallback: original template (Staff ID | Full Name | day1 | day2 | ...)
+    const dataRows = aoa.slice(1);
     for (const row of dataRows) {
       const staffId = String(row[0] ?? '').trim();
       const name = String(row[1] ?? '').trim();
@@ -132,16 +210,11 @@ export default function RotaUpload() {
         else if (code) shifts.push({ date: format(d, 'yyyy-MM-dd'), shift: code });
       });
       out.push({
-        staffId,
-        name,
+        staffId, name,
         matchedEmployeeId: match?.id || null,
-        shifts,
-        invalidCount,
-        error: !match
-          ? `No matching staff in this department`
-          : invalidCount
-          ? `${invalidCount} invalid shift code(s) — use D, N, OFF, PH`
-          : undefined,
+        shifts, invalidCount,
+        error: !match ? `No matching staff in this department`
+              : invalidCount ? `${invalidCount} invalid shift code(s)` : undefined,
       });
     }
 
@@ -149,6 +222,7 @@ export default function RotaUpload() {
     const matched = out.filter((r) => r.matchedEmployeeId).length;
     toast.success(`Parsed ${out.length} rows — ${matched} matched to staff.`);
   };
+
 
   const validRows = useMemo(() => (parsed || []).filter((r) => r.matchedEmployeeId && !r.error), [parsed]);
   const hasErrors = useMemo(() => (parsed || []).some((r) => r.error), [parsed]);
