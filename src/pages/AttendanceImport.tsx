@@ -69,6 +69,23 @@ export default function AttendanceImport() {
     toast.success("Template downloaded");
   };
 
+  const runMatch = (aoa: unknown[][], emps = employees) => {
+    const parsed = parseBiometricSheet(aoa);
+    setFormat(parsed.format);
+    setParseErrors(parsed.errors);
+    setDateRange(parsed.dateRange);
+    const { matched, unmatched: um } = matchPunchesToEmployees(parsed.punches, emps);
+    setPunches(matched);
+    setUnmatched([...parsed.errors, ...um]);
+    const sugs = summarizeUnmatched(um, emps);
+    setSuggestions(sugs);
+    const initSel: Record<string, string> = {};
+    for (const s of sugs) if (s.suggestions[0]) initSel[s.enroll_id] = s.suggestions[0].employee_id;
+    setSelectedMap(initSel);
+    if (matched.length === 0) toast.error("No valid punches found. Check the file format.");
+    else toast.success(`Parsed ${matched.length} punches (${parsed.format})`);
+  };
+
   const handleFile = async (file: File) => {
     setFileName(file.name);
     setResult(null);
@@ -76,22 +93,28 @@ export default function AttendanceImport() {
     const wb = XLSX.read(buf, { type: "array", cellDates: true });
     const sheet = wb.Sheets[wb.SheetNames[0]];
     const aoa = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "" });
-
-    const parsed = parseBiometricSheet(aoa);
-    setFormat(parsed.format);
-    setParseErrors(parsed.errors);
-    setDateRange(parsed.dateRange);
-
-    const { matched, unmatched: um } = matchPunchesToEmployees(parsed.punches, employees);
-    setPunches(matched);
-    setUnmatched([...parsed.errors, ...um]);
-
-    if (matched.length === 0) {
-      toast.error("No valid punches found. Check column headers match a supported format.");
-    } else {
-      toast.success(`Parsed ${matched.length} punches (${parsed.format} format)`);
-    }
+    setLastAoa(aoa);
+    runMatch(aoa);
   };
+
+  const saveMapping = async () => {
+    const map = Object.entries(selectedMap)
+      .filter(([, empId]) => !!empId)
+      .map(([enroll_id, employee_id]) => ({ enroll_id, employee_id }));
+    if (!map.length) return toast.error("Select at least one staff member to map");
+    setSavingMap(true);
+    const { error } = await supabase.rpc("bulk_map_biometric_ids" as any, { _map: map });
+    if (error) { setSavingMap(false); return toast.error(error.message); }
+    // Refresh employees then re-run matching
+    const { data } = await supabase.from("profiles")
+      .select("id, staff_id, biometric_enroll_id, full_name").eq("hr_status", "ACTIVE");
+    const fresh = (data as typeof employees) || [];
+    setEmployees(fresh);
+    if (lastAoa) runMatch(lastAoa, fresh);
+    setSavingMap(false);
+    toast.success(`Mapped ${map.length} enroll ID(s). Punches re-matched.`);
+  };
+
 
   const preview = useMemo(() => punches.slice(0, 50), [punches]);
 
