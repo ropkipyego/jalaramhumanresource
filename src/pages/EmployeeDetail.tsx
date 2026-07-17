@@ -10,8 +10,12 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { ArrowLeft, CheckCircle2, Circle, Loader2, User } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Circle, Loader2, User, UserX } from "lucide-react";
 import type { Branch, EmploymentType, Gender, HrStatus, JobGrade, Position } from "@/types/database";
 
 interface OnboardingItem {
@@ -35,6 +39,9 @@ export default function EmployeeDetail() {
   const [grades, setGrades] = useState<JobGrade[]>([]);
   const [managers, setManagers] = useState<{ id: string; full_name: string }[]>([]);
   const [onboarding, setOnboarding] = useState<OnboardingItem[]>([]);
+  const [offboardOpen, setOffboardOpen] = useState(false);
+  const [offboardReason, setOffboardReason] = useState("");
+  const [offboarding, setOffboarding] = useState(false);
 
   const load = async () => {
     if (!id) return;
@@ -135,11 +142,27 @@ export default function EmployeeDetail() {
     else load();
   };
 
+
+  const doOffboard = async () => {
+    if (!id) return;
+    if (offboardReason.trim().length < 3) return toast.error("Please provide a reason");
+    setOffboarding(true);
+    const { error } = await supabase.rpc("offboard_employee" as any, {
+      _employee_id: id, _reason: offboardReason.trim(),
+    });
+    setOffboarding(false);
+    if (error) return toast.error(error.message);
+    toast.success("Employee offboarded. Admins have been notified.");
+    setOffboardOpen(false);
+    load();
+  };
+
   const p = profile;
   const completedCount = onboarding.filter((o) => o.is_completed).length;
+  const isOffboarded = String(p.hr_status) === "TERMINATED";
 
   return (
-    <div className="space-y-6 max-w-5xl">
+    <div className="space-y-6 max-w-5xl animate-fade-in">
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-4">
           <Button asChild variant="ghost" size="icon"><Link to="/staff"><ArrowLeft className="h-4 w-4" /></Link></Button>
@@ -150,16 +173,51 @@ export default function EmployeeDetail() {
             <h1 className="text-2xl font-bold">{String(p.full_name)}</h1>
             <p className="text-muted-foreground">{String(p.staff_id)} · {String(p.email)}</p>
             <div className="flex gap-2 mt-1">
-              <Badge>{String(p.hr_status ?? "ACTIVE")}</Badge>
+              <Badge variant={isOffboarded ? "destructive" : "default"}>{String(p.hr_status ?? "ACTIVE")}</Badge>
               {p.employment_type && <Badge variant="outline">{String(p.employment_type)}</Badge>}
+              {isOffboarded && p.offboarded_at && (
+                <Badge variant="outline">Offboarded {new Date(String(p.offboarded_at)).toLocaleDateString()}</Badge>
+              )}
             </div>
           </div>
         </div>
-        <Button onClick={save} disabled={saving}>
-          {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Save Changes
-        </Button>
+        <div className="flex gap-2">
+          {!isOffboarded && (
+            <Dialog open={offboardOpen} onOpenChange={setOffboardOpen}>
+              <DialogTrigger asChild>
+                <Button variant="destructive"><UserX className="mr-2 h-4 w-4" />Offboard</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Offboard {String(p.full_name)}?</DialogTitle>
+                  <DialogDescription>
+                    The employee will be marked <strong>Terminated</strong>, deactivated (cannot log in), removed from
+                    department rosters, and all admins will be notified. This is auditable and can be reversed by editing
+                    HR Status back to Active.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-2 py-2">
+                  <Label>Reason for offboarding</Label>
+                  <Textarea rows={3} value={offboardReason} onChange={(e) => setOffboardReason(e.target.value)}
+                    placeholder="e.g. Resignation effective 30 June 2026" />
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setOffboardOpen(false)}>Cancel</Button>
+                  <Button variant="destructive" onClick={doOffboard} disabled={offboarding}>
+                    {offboarding && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Confirm Offboard
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
+          <Button onClick={save} disabled={saving}>
+            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Save Changes
+          </Button>
+        </div>
       </div>
+
 
       <Tabs defaultValue="personal">
         <TabsList>

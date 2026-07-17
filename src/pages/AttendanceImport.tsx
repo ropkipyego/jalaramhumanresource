@@ -14,9 +14,10 @@ import {
   Upload, Download, FileSpreadsheet, Loader2, CheckCircle2, AlertTriangle, Info,
 } from "lucide-react";
 import {
-  parseBiometricSheet, matchPunchesToEmployees, SUPPORTED_FORMATS,
-  type ParsedPunch, type ParseError,
+  parseBiometricSheet, matchPunchesToEmployees, summarizeUnmatched, SUPPORTED_FORMATS,
+  type ParsedPunch, type ParseError, type EnrollSuggestion,
 } from "@/lib/biometricParser";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function AttendanceImport() {
   const { hasRole } = useRole();
@@ -28,9 +29,13 @@ export default function AttendanceImport() {
   const [punches, setPunches] = useState<ParsedPunch[]>([]);
   const [parseErrors, setParseErrors] = useState<ParseError[]>([]);
   const [unmatched, setUnmatched] = useState<ParseError[]>([]);
+  const [suggestions, setSuggestions] = useState<EnrollSuggestion[]>([]);
+  const [selectedMap, setSelectedMap] = useState<Record<string, string>>({});
+  const [savingMap, setSavingMap] = useState(false);
   const [dateRange, setDateRange] = useState<{ from: string | null; to: string | null }>({ from: null, to: null });
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<Record<string, unknown> | null>(null);
+  const [lastAoa, setLastAoa] = useState<unknown[][] | null>(null);
 
   useEffect(() => {
     if (!canAccess) return;
@@ -64,6 +69,23 @@ export default function AttendanceImport() {
     toast.success("Template downloaded");
   };
 
+  const runMatch = (aoa: unknown[][], emps = employees) => {
+    const parsed = parseBiometricSheet(aoa);
+    setFormat(parsed.format);
+    setParseErrors(parsed.errors);
+    setDateRange(parsed.dateRange);
+    const { matched, unmatched: um } = matchPunchesToEmployees(parsed.punches, emps);
+    setPunches(matched);
+    setUnmatched([...parsed.errors, ...um]);
+    const sugs = summarizeUnmatched(um, emps);
+    setSuggestions(sugs);
+    const initSel: Record<string, string> = {};
+    for (const s of sugs) if (s.suggestions[0]) initSel[s.enroll_id] = s.suggestions[0].employee_id;
+    setSelectedMap(initSel);
+    if (matched.length === 0) toast.error("No valid punches found. Check the file format.");
+    else toast.success(`Parsed ${matched.length} punches (${parsed.format})`);
+  };
+
   const handleFile = async (file: File) => {
     setFileName(file.name);
     setResult(null);
@@ -71,22 +93,28 @@ export default function AttendanceImport() {
     const wb = XLSX.read(buf, { type: "array", cellDates: true });
     const sheet = wb.Sheets[wb.SheetNames[0]];
     const aoa = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "" });
-
-    const parsed = parseBiometricSheet(aoa);
-    setFormat(parsed.format);
-    setParseErrors(parsed.errors);
-    setDateRange(parsed.dateRange);
-
-    const { matched, unmatched: um } = matchPunchesToEmployees(parsed.punches, employees);
-    setPunches(matched);
-    setUnmatched([...parsed.errors, ...um]);
-
-    if (matched.length === 0) {
-      toast.error("No valid punches found. Check column headers match a supported format.");
-    } else {
-      toast.success(`Parsed ${matched.length} punches (${parsed.format} format)`);
-    }
+    setLastAoa(aoa);
+    runMatch(aoa);
   };
+
+  const saveMapping = async () => {
+    const map = Object.entries(selectedMap)
+      .filter(([, empId]) => !!empId)
+      .map(([enroll_id, employee_id]) => ({ enroll_id, employee_id }));
+    if (!map.length) return toast.error("Select at least one staff member to map");
+    setSavingMap(true);
+    const { error } = await supabase.rpc("bulk_map_biometric_ids" as any, { _map: map });
+    if (error) { setSavingMap(false); return toast.error(error.message); }
+    // Refresh employees then re-run matching
+    const { data } = await supabase.from("profiles")
+      .select("id, staff_id, biometric_enroll_id, full_name").eq("hr_status", "ACTIVE");
+    const fresh = (data as typeof employees) || [];
+    setEmployees(fresh);
+    if (lastAoa) runMatch(lastAoa, fresh);
+    setSavingMap(false);
+    toast.success(`Mapped ${map.length} enroll ID(s). Punches re-matched.`);
+  };
+
 
   const preview = useMemo(() => punches.slice(0, 50), [punches]);
 
@@ -197,17 +225,85 @@ export default function AttendanceImport() {
               </Alert>
             )}
 
-            {unmatched.length > 0 && (
+            {suggestions.length > 0 && (
+              <div className="mb-4 rounded-lg border border-warning/40 bg-warning/5 p-4 animate-fade-in">
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <div className="font-semibold flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4 text-warning" />
+                      Map unmapped Enroll IDs to staff
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Names below were auto-suggested from the file. Confirm each and save — the file will re-match automatically.
+                    </div>
+                  </div>
+                  <Button size="sm" onClick={saveMapping} disabled={savingMap}>
+                    {savingMap && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Save mapping
+                  </Button>
+                </div>
+                <div className="max-h-64 overflow-auto border rounded bg-background">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-24">Enroll ID</TableHead>
+                        <TableHead>Name in file</TableHead>
+                        <TableHead>Punches</TableHead>
+                        <TableHead>Assign to staff</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {suggestions.map((s) => (
+                        <TableRow key={s.enroll_id}>
+                          <TableCell className="font-mono">{s.enroll_id}</TableCell>
+                          <TableCell>{s.name || "—"}</TableCell>
+                          <TableCell>{s.count}</TableCell>
+                          <TableCell>
+                            <Select
+                              value={selectedMap[s.enroll_id] || ""}
+                              onValueChange={(v) => setSelectedMap({ ...selectedMap, [s.enroll_id]: v })}
+                            >
+                              <SelectTrigger className="h-8"><SelectValue placeholder="Pick staff…" /></SelectTrigger>
+                              <SelectContent>
+                                {s.suggestions.length > 0 && (
+                                  <>
+                                    {s.suggestions.map((sg) => (
+                                      <SelectItem key={sg.employee_id} value={sg.employee_id}>
+                                        ⭐ {sg.full_name}
+                                      </SelectItem>
+                                    ))}
+                                  </>
+                                )}
+                                {employees
+                                  .filter((e) => !s.suggestions.some((sg) => sg.employee_id === e.id))
+                                  .map((e) => (
+                                    <SelectItem key={e.id} value={e.id}>
+                                      {e.full_name} ({e.staff_id})
+                                    </SelectItem>
+                                  ))}
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
+
+            {parseErrors.length > 0 && (
               <Alert variant="destructive" className="mb-4">
                 <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>{unmatched.length} row(s) with issues</AlertTitle>
+                <AlertTitle>{parseErrors.length} parse error(s)</AlertTitle>
                 <AlertDescription className="max-h-32 overflow-auto text-xs">
-                  {unmatched.slice(0, 20).map((e, i) => (
-                    <div key={i}>Row {e.row}: {e.staff_id ? `${e.staff_id} — ` : ""}{e.error}</div>
+                  {parseErrors.slice(0, 20).map((e, i) => (
+                    <div key={i}>Row {e.row}: {e.error}</div>
                   ))}
                 </AlertDescription>
               </Alert>
             )}
+
 
             {preview.length > 0 ? (
               <Table>

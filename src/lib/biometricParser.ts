@@ -333,9 +333,42 @@ export function parseBiometricSheet(aoa: unknown[][]): ParseResult {
   return parseFallback(aoa);
 }
 
+export type EmployeeLite = { id: string; staff_id: string; biometric_enroll_id?: string | null; full_name?: string };
+
+const tokenize = (s: string) =>
+  s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().split(/\s+/).filter(Boolean);
+
+function fuzzyMatchByName(name: string, employees: EmployeeLite[]): string | null {
+  const t = tokenize(name);
+  if (!t.length) return null;
+  let best: { id: string; score: number } | null = null;
+  for (const e of employees) {
+    const et = tokenize(e.full_name || "");
+    if (!et.length) continue;
+    let score = 0;
+    for (const tk of t) {
+      if (et.includes(tk)) score += 2;
+      else if (et.some((w) => w.startsWith(tk) || tk.startsWith(w))) score += 1;
+    }
+    if (!best || score > best.score) best = { id: e.id, score };
+  }
+  // Require a strong single match: at least 2 points AND unique top score
+  if (!best || best.score < 2) return null;
+  const tied = employees.filter((e) => {
+    const et = tokenize(e.full_name || "");
+    let s = 0;
+    for (const tk of t) {
+      if (et.includes(tk)) s += 2;
+      else if (et.some((w) => w.startsWith(tk) || tk.startsWith(w))) s += 1;
+    }
+    return s === best!.score;
+  });
+  return tied.length === 1 ? best.id : null;
+}
+
 export function matchPunchesToEmployees(
   punches: ParsedPunch[],
-  employees: { id: string; staff_id: string; biometric_enroll_id?: string | null; full_name?: string }[],
+  employees: EmployeeLite[],
 ): { matched: ParsedPunch[]; unmatched: ParseError[] } {
   const byKey = new Map<string, string>();
   const byName = new Map<string, string>();
@@ -347,12 +380,59 @@ export function matchPunchesToEmployees(
   const matched: ParsedPunch[] = [];
   const unmatched: ParseError[] = [];
   for (const p of punches) {
-    let empId = byKey.get(p.staff_id.trim().toUpperCase());
-    if (!empId && p.full_name) empId = byName.get(p.full_name.trim().toUpperCase());
+    let empId =
+      byKey.get(p.staff_id.trim().toUpperCase()) ||
+      (p.full_name ? byName.get(p.full_name.trim().toUpperCase()) : undefined) ||
+      (p.full_name ? fuzzyMatchByName(p.full_name, employees) ?? undefined : undefined);
     if (empId) matched.push({ ...p, employee_id: empId });
-    else unmatched.push({ row: p.row, staff_id: p.staff_id, error: `Enroll ID "${p.staff_id}"${p.full_name ? ` (${p.full_name})` : ""} not mapped to a staff profile` });
+    else unmatched.push({
+      row: p.row,
+      staff_id: p.staff_id,
+      error: `Enroll ID "${p.staff_id}"${p.full_name ? ` (${p.full_name})` : ""} not mapped to a staff profile`,
+    });
   }
   return { matched, unmatched };
+}
+
+export type EnrollSuggestion = {
+  enroll_id: string;
+  name?: string;
+  count: number;
+  suggestions: { employee_id: string; full_name: string; score: number }[];
+};
+
+export function summarizeUnmatched(
+  unmatched: ParseError[],
+  employees: EmployeeLite[],
+): EnrollSuggestion[] {
+  const byId = new Map<string, { name?: string; count: number }>();
+  for (const u of unmatched) {
+    if (!u.staff_id) continue;
+    const m = u.error.match(/Enroll ID "[^"]+" \(([^)]+)\)/);
+    const cur = byId.get(u.staff_id) || { name: m?.[1], count: 0 };
+    cur.count++;
+    if (!cur.name && m?.[1]) cur.name = m[1];
+    byId.set(u.staff_id, cur);
+  }
+  const out: EnrollSuggestion[] = [];
+  for (const [enroll_id, info] of byId) {
+    const t = tokenize(info.name || "");
+    const suggs = employees
+      .map((e) => {
+        const et = tokenize(e.full_name || "");
+        let score = 0;
+        for (const tk of t) {
+          if (et.includes(tk)) score += 2;
+          else if (et.some((w) => w.startsWith(tk) || tk.startsWith(w))) score += 1;
+        }
+        return { employee_id: e.id, full_name: e.full_name || "", score };
+      })
+      .filter((s) => s.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5);
+    out.push({ enroll_id, name: info.name, count: info.count, suggestions: suggs });
+  }
+  return out.sort((a, b) => b.count - a.count);
 }
 
 export const SUPPORTED_FORMATS = [
