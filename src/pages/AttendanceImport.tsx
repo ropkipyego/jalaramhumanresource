@@ -29,9 +29,13 @@ export default function AttendanceImport() {
   const [punches, setPunches] = useState<ParsedPunch[]>([]);
   const [parseErrors, setParseErrors] = useState<ParseError[]>([]);
   const [unmatched, setUnmatched] = useState<ParseError[]>([]);
+  const [suggestions, setSuggestions] = useState<EnrollSuggestion[]>([]);
+  const [selectedMap, setSelectedMap] = useState<Record<string, string>>({});
+  const [savingMap, setSavingMap] = useState(false);
   const [dateRange, setDateRange] = useState<{ from: string | null; to: string | null }>({ from: null, to: null });
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<Record<string, unknown> | null>(null);
+  const [lastAoa, setLastAoa] = useState<unknown[][] | null>(null);
 
   useEffect(() => {
     if (!canAccess) return;
