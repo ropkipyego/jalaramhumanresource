@@ -14,9 +14,10 @@ import {
   Upload, Download, FileSpreadsheet, Loader2, CheckCircle2, AlertTriangle, Info,
 } from "lucide-react";
 import {
-  parseBiometricSheet, matchPunchesToEmployees, SUPPORTED_FORMATS,
-  type ParsedPunch, type ParseError,
+  parseBiometricSheet, matchPunchesToEmployees, summarizeUnmatched, SUPPORTED_FORMATS,
+  type ParsedPunch, type ParseError, type EnrollSuggestion,
 } from "@/lib/biometricParser";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function AttendanceImport() {
   const { hasRole } = useRole();
