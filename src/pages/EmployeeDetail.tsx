@@ -142,9 +142,6 @@ export default function EmployeeDetail() {
     else load();
   };
 
-  const [offboardOpen, setOffboardOpen] = useState(false);
-  const [offboardReason, setOffboardReason] = useState("");
-  const [offboarding, setOffboarding] = useState(false);
 
   const doOffboard = async () => {
     if (!id) return;
