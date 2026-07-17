@@ -39,6 +39,9 @@ export default function EmployeeDetail() {
   const [grades, setGrades] = useState<JobGrade[]>([]);
   const [managers, setManagers] = useState<{ id: string; full_name: string }[]>([]);
   const [onboarding, setOnboarding] = useState<OnboardingItem[]>([]);
+  const [offboardOpen, setOffboardOpen] = useState(false);
+  const [offboardReason, setOffboardReason] = useState("");
+  const [offboarding, setOffboarding] = useState(false);
 
   const load = async () => {
     if (!id) return;
