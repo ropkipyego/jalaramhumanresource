@@ -225,17 +225,85 @@ export default function AttendanceImport() {
               </Alert>
             )}
 
-            {unmatched.length > 0 && (
+            {suggestions.length > 0 && (
+              <div className="mb-4 rounded-lg border border-warning/40 bg-warning/5 p-4 animate-fade-in">
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <div className="font-semibold flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4 text-warning" />
+                      Map unmapped Enroll IDs to staff
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Names below were auto-suggested from the file. Confirm each and save — the file will re-match automatically.
+                    </div>
+                  </div>
+                  <Button size="sm" onClick={saveMapping} disabled={savingMap}>
+                    {savingMap && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Save mapping
+                  </Button>
+                </div>
+                <div className="max-h-64 overflow-auto border rounded bg-background">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-24">Enroll ID</TableHead>
+                        <TableHead>Name in file</TableHead>
+                        <TableHead>Punches</TableHead>
+                        <TableHead>Assign to staff</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {suggestions.map((s) => (
+                        <TableRow key={s.enroll_id}>
+                          <TableCell className="font-mono">{s.enroll_id}</TableCell>
+                          <TableCell>{s.name || "—"}</TableCell>
+                          <TableCell>{s.count}</TableCell>
+                          <TableCell>
+                            <Select
+                              value={selectedMap[s.enroll_id] || ""}
+                              onValueChange={(v) => setSelectedMap({ ...selectedMap, [s.enroll_id]: v })}
+                            >
+                              <SelectTrigger className="h-8"><SelectValue placeholder="Pick staff…" /></SelectTrigger>
+                              <SelectContent>
+                                {s.suggestions.length > 0 && (
+                                  <>
+                                    {s.suggestions.map((sg) => (
+                                      <SelectItem key={sg.employee_id} value={sg.employee_id}>
+                                        ⭐ {sg.full_name}
+                                      </SelectItem>
+                                    ))}
+                                  </>
+                                )}
+                                {employees
+                                  .filter((e) => !s.suggestions.some((sg) => sg.employee_id === e.id))
+                                  .map((e) => (
+                                    <SelectItem key={e.id} value={e.id}>
+                                      {e.full_name} ({e.staff_id})
+                                    </SelectItem>
+                                  ))}
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
+
+            {parseErrors.length > 0 && (
               <Alert variant="destructive" className="mb-4">
                 <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>{unmatched.length} row(s) with issues</AlertTitle>
+                <AlertTitle>{parseErrors.length} parse error(s)</AlertTitle>
                 <AlertDescription className="max-h-32 overflow-auto text-xs">
-                  {unmatched.slice(0, 20).map((e, i) => (
-                    <div key={i}>Row {e.row}: {e.staff_id ? `${e.staff_id} — ` : ""}{e.error}</div>
+                  {parseErrors.slice(0, 20).map((e, i) => (
+                    <div key={i}>Row {e.row}: {e.error}</div>
                   ))}
                 </AlertDescription>
               </Alert>
             )}
+
 
             {preview.length > 0 ? (
               <Table>
