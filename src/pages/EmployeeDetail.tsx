@@ -10,8 +10,12 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { ArrowLeft, CheckCircle2, Circle, Loader2, User } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Circle, Loader2, User, UserX } from "lucide-react";
 import type { Branch, EmploymentType, Gender, HrStatus, JobGrade, Position } from "@/types/database";
 
 interface OnboardingItem {
