@@ -169,3 +169,168 @@ PAYE bands, NSSF Tier I/II, SHIF, Housing Levy, Personal Relief — all editable
 - **System issues:** report to the Super Admin (they can view Audit Logs and Compliance Dashboard).
 
 _Thank you for helping us test — flag anything unexpected so we can fix it before go-live._
+
+---
+
+## Appendix A — Testing the system (Go-Live Checklist)
+
+Use this order for pilot testing.
+
+### 1. Super Admin bootstrap (one-time)
+- Log in with the seeded Super Admin account.
+- Go to **Organization Setup** → confirm hospital name, address, PIN, KRA branch.
+- Go to **Statutory Settings** → confirm PAYE, NSSF, SHIF and Housing Levy rates match the current Finance Act.
+- Go to **Departments** → create every department (Reception, Housekeeping, OPD, Wards, Lab, Pharmacy, Admin, etc.).
+- Go to **Positions** and **Job Grades** → add the ones your hospital uses.
+
+### 2. HR Admin loads staff
+- **Staff → Invite Staff** or **Bulk Staff Upload** to create profiles.
+- On each profile → **Employment** tab: assign Department, Position, Grade, Manager, employment type and date joined.
+- On each profile → **Personal** tab: set the **Biometric Enroll ID** to the number that appears under `ID:` in your ZKTeco export. This is what makes attendance imports match.
+
+### 3. Heads set up rotas
+- **Rota → Department Rota** → pick department, pick week, add shifts (D, N, OFF, PH, L).
+- Or **Rota → Upload Rota** to import the department cumulative rota (matrix format).
+- Publish the week. Staff get a notification.
+
+### 4. Attendance import
+- Export from the ZKTeco device: **Attendance → Reports → Attendance Record Report → Excel**.
+- **Attendance → Biometric Import** → upload the file.
+- Any unmapped Enroll IDs appear in the **"Map unmapped Enroll IDs to staff"** panel with auto-suggested names. Confirm the picks and click **Save mapping** — the file re-matches automatically. Repeat until zero unmapped.
+- Click **Import & Compute**.
+
+### 5. Payroll dry-run
+- **Payroll → Periods** → open the month → **Lock Attendance** → **Calculate**.
+- Review any missing-data flags (basic salary, KRA PIN). Fix on the profile and recalculate.
+- HR **Review** → Finance **Approve** → Super Admin **Lock**.
+
+### 6. Offboarding
+- Open the staff profile → **Offboard** button (red) → enter reason → confirm.
+- The account is deactivated, department memberships removed, and every admin gets a notification.
+
+---
+
+## Appendix B — Self-hosting on Hetzner (production)
+
+Lovable Cloud (your current hosting) is fine for the pilot. If you decide to run the whole stack on your own Hetzner server, here is a proven path.
+
+> **Before you start**: Everything below assumes you own a domain (e.g. `hr.jalaram.co.ke`), a Hetzner Cloud account, and basic Linux comfort. Budget ~2 hours end-to-end.
+
+### 1. Provision the server
+- **Hetzner Cloud** → New Project → **Add Server**.
+- Location: **Nuremberg / Falkenstein / Helsinki** (EU) or **Ashburn** (US) — pick the closest to Kenya (Helsinki gives good latency).
+- Image: **Ubuntu 24.04 LTS**.
+- Type: **CPX21** (3 vCPU / 4 GB RAM / 80 GB) is a comfortable start for < 200 staff. Upgrade to **CPX31** if you keep years of biometric history.
+- Add your **SSH key**.
+- Enable **Backups** (adds 20 % but critical for HR data).
+- Note the public **IPv4** address.
+
+### 2. Point your domain at the server
+In your DNS provider add:
+```
+A    hr.jalaram.co.ke     -> <your Hetzner IP>
+A    api.jalaram.co.ke    -> <your Hetzner IP>
+```
+
+### 3. First login and hardening
+```bash
+ssh root@<ip>
+adduser hr && usermod -aG sudo hr
+rsync --archive --chown=hr:hr ~/.ssh /home/hr
+ufw allow OpenSSH && ufw allow http && ufw allow https && ufw enable
+apt update && apt upgrade -y
+apt install -y docker.io docker-compose-plugin git nginx certbot python3-certbot-nginx
+systemctl enable --now docker
+```
+
+### 4. Install Supabase (self-hosted, holds all your data)
+```bash
+sudo -iu hr
+git clone --depth 1 https://github.com/supabase/supabase
+cd supabase/docker
+cp .env.example .env
+# Edit .env: set POSTGRES_PASSWORD, JWT_SECRET (openssl rand -hex 32),
+#   SITE_URL=https://hr.jalaram.co.ke,
+#   API_EXTERNAL_URL=https://api.jalaram.co.ke,
+#   DASHBOARD_USERNAME / DASHBOARD_PASSWORD
+docker compose pull
+docker compose up -d
+```
+
+Wait 2–3 min, then check: `docker compose ps` — every service should be **healthy**.
+
+### 5. Migrate the schema and data from Lovable Cloud
+1. In Lovable: **Cloud → Advanced settings → Export data**. Wait for the email/notification, download the ZIP.
+2. Copy to server: `scp export.zip hr@<ip>:/home/hr/`
+3. On the server:
+   ```bash
+   unzip export.zip
+   psql "postgresql://postgres:<pw>@localhost:5432/postgres" < schema.sql
+   psql "postgresql://postgres:<pw>@localhost:5432/postgres" < data.sql
+   ```
+4. Copy the `supabase/migrations/` folder from this project to the server and run them in order (they're idempotent).
+
+### 6. Build and deploy the frontend
+On your laptop:
+```bash
+git clone <this repo>
+cd <repo>
+cp .env .env.production
+# Edit .env.production:
+#   VITE_SUPABASE_URL=https://api.jalaram.co.ke
+#   VITE_SUPABASE_PUBLISHABLE_KEY=<the ANON key printed by supabase docker up>
+#   VITE_SUPABASE_PROJECT_ID=self-hosted
+bun install
+bun run build
+rsync -avz dist/ hr@<ip>:/var/www/hr/
+```
+
+### 7. Nginx + HTTPS
+On the server, `/etc/nginx/sites-available/hr`:
+```nginx
+server {
+  server_name hr.jalaram.co.ke;
+  root /var/www/hr;
+  index index.html;
+  location / { try_files $uri /index.html; }
+}
+server {
+  server_name api.jalaram.co.ke;
+  location / {
+    proxy_pass http://localhost:8000;   # Supabase Kong
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $remote_addr;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+}
+```
+```bash
+ln -s /etc/nginx/sites-available/hr /etc/nginx/sites-enabled/
+nginx -t && systemctl reload nginx
+certbot --nginx -d hr.jalaram.co.ke -d api.jalaram.co.ke
+```
+
+### 8. Nightly backups
+```bash
+# /etc/cron.daily/hr-backup
+#!/bin/bash
+d=$(date +%F)
+docker exec supabase-db pg_dump -U postgres postgres | gzip > /backups/db-$d.sql.gz
+find /backups -name 'db-*.sql.gz' -mtime +30 -delete
+```
+Mirror `/backups` to Hetzner **Storage Box** or S3 with `rclone`.
+
+### 9. Email (invitations & password resets)
+Set these in Supabase Studio → Authentication → SMTP:
+- Host: `smtp.resend.com` (or your provider)
+- Port: `465` (SSL)
+- User / Pass: your API credentials
+- Sender: `no-reply@jalaram.co.ke`
+
+### 10. Verify
+- Visit `https://hr.jalaram.co.ke` — log in with your Super Admin.
+- Invite one test staff, complete their onboarding, upload one biometric file, run one payroll dry-run.
+
+Once green, decommission the Lovable Cloud project or keep it as a warm standby.
+
+**Support**: if you get stuck at any step, capture the exact error and the step number and share with your engineer — the numbering above makes triage fast.
