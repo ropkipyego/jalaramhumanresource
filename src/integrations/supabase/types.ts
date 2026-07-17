@@ -192,8 +192,8 @@ export type Database = {
       }
       assets: {
         Row: {
-          category: string | null
-          code: string | null
+          asset_tag: string | null
+          asset_type: string | null
           condition: string | null
           created_at: string
           id: string
@@ -207,8 +207,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          category?: string | null
-          code?: string | null
+          asset_tag?: string | null
+          asset_type?: string | null
           condition?: string | null
           created_at?: string
           id?: string
@@ -222,8 +222,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          category?: string | null
-          code?: string | null
+          asset_tag?: string | null
+          asset_type?: string | null
           condition?: string | null
           created_at?: string
           id?: string
@@ -869,8 +869,11 @@ export type Database = {
       employee_training: {
         Row: {
           certificate_url: string | null
+          completed_at: string | null
           completion_date: string | null
           course_id: string | null
+          course_title: string | null
+          cpd_points: number | null
           created_at: string
           employee_id: string
           enrolled_date: string | null
@@ -883,8 +886,11 @@ export type Database = {
         }
         Insert: {
           certificate_url?: string | null
+          completed_at?: string | null
           completion_date?: string | null
           course_id?: string | null
+          course_title?: string | null
+          cpd_points?: number | null
           created_at?: string
           employee_id: string
           enrolled_date?: string | null
@@ -897,8 +903,11 @@ export type Database = {
         }
         Update: {
           certificate_url?: string | null
+          completed_at?: string | null
           completion_date?: string | null
           course_id?: string | null
+          course_title?: string | null
+          cpd_points?: number | null
           created_at?: string
           employee_id?: string
           enrolled_date?: string | null
@@ -1263,38 +1272,51 @@ export type Database = {
       on_call_slots: {
         Row: {
           created_at: string
+          created_by: string | null
           department_id: string | null
           employee_id: string
           end_time: string
           id: string
           notes: string | null
+          slot_date: string
           start_time: string
           status: string
           updated_at: string
         }
         Insert: {
           created_at?: string
+          created_by?: string | null
           department_id?: string | null
           employee_id: string
-          end_time: string
+          end_time?: string
           id?: string
           notes?: string | null
-          start_time: string
+          slot_date: string
+          start_time?: string
           status?: string
           updated_at?: string
         }
         Update: {
           created_at?: string
+          created_by?: string | null
           department_id?: string | null
           employee_id?: string
           end_time?: string
           id?: string
           notes?: string | null
+          slot_date?: string
           start_time?: string
           status?: string
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "on_call_slots_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "on_call_slots_department_id_fkey"
             columns: ["department_id"]
@@ -1810,6 +1832,8 @@ export type Database = {
           next_of_kin_name: string | null
           next_of_kin_phone: string | null
           nssf_number: string | null
+          offboarded_at: string | null
+          offboarding_reason: string | null
           passport_no: string | null
           phone: string | null
           position_id: string | null
@@ -1851,6 +1875,8 @@ export type Database = {
           next_of_kin_name?: string | null
           next_of_kin_phone?: string | null
           nssf_number?: string | null
+          offboarded_at?: string | null
+          offboarding_reason?: string | null
           passport_no?: string | null
           phone?: string | null
           position_id?: string | null
@@ -1892,6 +1918,8 @@ export type Database = {
           next_of_kin_name?: string | null
           next_of_kin_phone?: string | null
           nssf_number?: string | null
+          offboarded_at?: string | null
+          offboarding_reason?: string | null
           passport_no?: string | null
           phone?: string | null
           position_id?: string | null
@@ -2106,51 +2134,51 @@ export type Database = {
       }
       shift_swap_requests: {
         Row: {
-          approved_at: string | null
-          approved_by: string | null
           created_at: string
           department_id: string | null
           id: string
-          original_date: string
-          original_shift: string | null
           reason: string | null
+          requester_date: string
           requester_id: string
+          requester_shift: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
           status: string
-          swap_date: string
-          swap_shift: string | null
+          target_date: string
           target_id: string | null
+          target_shift: string | null
           updated_at: string
         }
         Insert: {
-          approved_at?: string | null
-          approved_by?: string | null
           created_at?: string
           department_id?: string | null
           id?: string
-          original_date: string
-          original_shift?: string | null
           reason?: string | null
+          requester_date: string
           requester_id: string
+          requester_shift?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           status?: string
-          swap_date: string
-          swap_shift?: string | null
+          target_date: string
           target_id?: string | null
+          target_shift?: string | null
           updated_at?: string
         }
         Update: {
-          approved_at?: string | null
-          approved_by?: string | null
           created_at?: string
           department_id?: string | null
           id?: string
-          original_date?: string
-          original_shift?: string | null
           reason?: string | null
+          requester_date?: string
           requester_id?: string
+          requester_shift?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           status?: string
-          swap_date?: string
-          swap_shift?: string | null
+          target_date?: string
           target_id?: string | null
+          target_shift?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -2164,6 +2192,13 @@ export type Database = {
           {
             foreignKeyName: "shift_swap_requests_requester_id_fkey"
             columns: ["requester_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_swap_requests_target_id_fkey"
+            columns: ["target_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -2286,40 +2321,46 @@ export type Database = {
       training_courses: {
         Row: {
           code: string | null
+          cpd_points: number | null
           created_at: string
           description: string | null
           duration_hours: number | null
           id: string
           is_active: boolean
+          is_internal: boolean | null
           is_mandatory: boolean
-          name: string
           provider: string | null
+          title: string
           updated_at: string
           validity_months: number | null
         }
         Insert: {
           code?: string | null
+          cpd_points?: number | null
           created_at?: string
           description?: string | null
           duration_hours?: number | null
           id?: string
           is_active?: boolean
+          is_internal?: boolean | null
           is_mandatory?: boolean
-          name: string
           provider?: string | null
+          title: string
           updated_at?: string
           validity_months?: number | null
         }
         Update: {
           code?: string | null
+          cpd_points?: number | null
           created_at?: string
           description?: string | null
           duration_hours?: number | null
           id?: string
           is_active?: boolean
+          is_internal?: boolean | null
           is_mandatory?: boolean
-          name?: string
           provider?: string | null
+          title?: string
           updated_at?: string
           validity_months?: number | null
         }
@@ -2420,6 +2461,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      bulk_map_biometric_ids: { Args: { _map: Json }; Returns: Json }
       calculate_payroll: { Args: { _period_id: string }; Returns: Json }
       calculate_used_leave_days: {
         Args: { _employee_id: string; _year?: number }
@@ -2482,6 +2524,10 @@ export type Database = {
           _table_name: string
         }
         Returns: string
+      }
+      offboard_employee: {
+        Args: { _employee_id: string; _reason: string }
+        Returns: Json
       }
     }
     Enums: {
