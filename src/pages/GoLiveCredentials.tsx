@@ -42,8 +42,8 @@ interface CredentialRow {
 }
 
 export default function GoLiveCredentials() {
-  const { hasRole } = useRole();
-  const canAccess = hasRole("ADMIN");
+  const { canManageStaffLogins } = useRole();
+  const canAccess = canManageStaffLogins;
 
   const [staff, setStaff] = useState<StaffRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -234,24 +234,17 @@ export default function GoLiveCredentials() {
 
       <Alert>
         <ShieldAlert className="h-4 w-4" />
-        <AlertTitle>Going live — how to get every staff login</AlertTitle>
+        <AlertTitle>Admin / Super Admin only</AlertTitle>
         <AlertDescription className="space-y-2 text-sm">
           <p>
-            <strong>Passwords cannot be recovered</strong> from the database (they are hashed).
-            Use this page to list every login email, then reset passwords to <code className="font-mono">ChangeMe123!</code> and download the Excel once.
+            Reset logins to <code className="font-mono">ChangeMe123!</code>, then share each email privately.
+            Staff must change the password on next login.
           </p>
           <ol className="list-decimal pl-5 space-y-1">
-            <li>Deploy: <code className="text-xs">supabase functions deploy go-live-credentials</code></li>
-            <li>Run DB migration for <code className="text-xs">must_change_password</code> in Supabase (not Vercel)</li>
-            <li>Click <strong>Refresh roster</strong> to load all staff emails</li>
-            <li>Click <strong>Reset ALL active logins</strong> (or select people)</li>
-            <li>Everyone gets <code className="font-mono">ChangeMe123!</code> and must change it after login</li>
-            <li>Share each email privately with that staff member</li>
+            <li>Refresh roster</li>
+            <li>Reset selected or all active logins</li>
+            <li>Tell each person their email + temporary password</li>
           </ol>
-          <p>
-            Alternative (CLI): set <code className="text-xs">SUPABASE_SERVICE_ROLE_KEY</code> then run{" "}
-            <code className="text-xs">node scripts/export-staff-logins.mjs --reset</code>
-          </p>
         </AlertDescription>
       </Alert>
 

@@ -72,12 +72,12 @@ const hrNav: NavItem[] = [
   { title: 'My Leave', url: '/my-leave', icon: CalendarDays },
   { title: 'Leave Admin', url: '/leave-admin', icon: CalendarDays, roles: ['HEAD', 'ADMIN', 'SUPER_ADMIN'] },
   { title: 'Leave Calendar', url: '/leave-calendar', icon: CalendarCheck, roles: ['HEAD', 'ADMIN', 'SUPER_ADMIN'] },
-  { title: 'Leave Encashment', url: '/leave-encashment', icon: Banknote },
+  { title: 'Leave Encashment', url: '/leave-encashment', icon: Banknote, roles: ['ADMIN', 'SUPER_ADMIN', 'FINANCE_ADMIN'] },
   { title: 'Recruitment', url: '/recruitment', icon: UserSearch, roles: ['ADMIN', 'SUPER_ADMIN'] },
-  { title: 'Performance', url: '/performance', icon: Target },
-  { title: 'Training & CPD', url: '/training', icon: GraduationCap },
+  { title: 'Performance', url: '/performance', icon: Target, roles: ['HEAD', 'ADMIN', 'SUPER_ADMIN'] },
+  { title: 'Training & CPD', url: '/training', icon: GraduationCap, roles: ['HEAD', 'ADMIN', 'SUPER_ADMIN'] },
   { title: 'Disciplinary', url: '/disciplinary', icon: Gavel, roles: ['ADMIN', 'SUPER_ADMIN'] },
-  { title: 'Assets', url: '/assets', icon: Package },
+  { title: 'Assets', url: '/assets', icon: Package, roles: ['ADMIN', 'SUPER_ADMIN'] },
   { title: 'Departments', url: '/departments', icon: Building2, roles: ['SUPER_ADMIN'] },
   { title: 'Positions', url: '/positions', icon: Briefcase, roles: ['SUPER_ADMIN'] },
   { title: 'Job Grades', url: '/grades', icon: Layers, roles: ['SUPER_ADMIN'] },
@@ -86,7 +86,7 @@ const hrNav: NavItem[] = [
 const payrollNav: NavItem[] = [
   { title: 'My Payslips', url: '/my-payslips', icon: FileText },
   { title: 'Payroll Periods', url: '/payroll', icon: Calculator, roles: ['ADMIN', 'SUPER_ADMIN', 'FINANCE_ADMIN'] },
-  { title: 'Loans & Advances', url: '/loans', icon: Banknote },
+  { title: 'Loans & Advances', url: '/loans', icon: Banknote, roles: ['ADMIN', 'SUPER_ADMIN', 'FINANCE_ADMIN'] },
   { title: 'Statutory Rates', url: '/payroll/settings', icon: Landmark, roles: ['SUPER_ADMIN'] },
   { title: 'Reports & Exports', url: '/reports', icon: BarChart3, roles: ['ADMIN', 'SUPER_ADMIN', 'FINANCE_ADMIN'] },
 ];
@@ -118,11 +118,11 @@ function pathInGroup(pathname: string, items: NavItem[]) {
 
 export function AppSidebar() {
   const { signOut, profile } = useAuth();
-  const { role, hasRole } = useRole();
+  const { role } = useRole();
   const location = useLocation();
 
   const filterByRole = (items: NavItem[]) =>
-    items.filter((i) => !i.roles || i.roles.some((r) => hasRole(r as any)));
+    items.filter((i) => !i.roles || (!!role && i.roles.includes(role)));
 
   const initialOpen = useMemo(() => {
     const open: Record<string, boolean> = {};

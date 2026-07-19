@@ -51,7 +51,7 @@ const ROLE_OPTIONS: { value: AppRole; label: string; color: string }[] = [
 
 export default function StaffDirectory() {
   const { user } = useAuth();
-  const { hasRole, isSuperAdmin } = useRole();
+  const { hasRole, isSuperAdmin, canManageStaffLogins } = useRole();
 
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [allDepartments, setAllDepartments] = useState<Department[]>([]);
@@ -66,7 +66,8 @@ export default function StaffDirectory() {
   const [selectedDepts, setSelectedDepts] = useState<Map<string, { isPrimary: boolean; isHead: boolean }>>(new Map());
   const [isSaving, setIsSaving] = useState(false);
 
-  const isAdmin = hasRole('ADMIN');
+  /** Full employee file + password reset — ADMIN / SUPER_ADMIN only (not Finance/Head) */
+  const isAdmin = canManageStaffLogins;
 
   useEffect(() => {
     fetchData();
@@ -372,9 +373,13 @@ export default function StaffDirectory() {
                             .toUpperCase()}
                         </div>
                         <div>
-                          <Link to={`/staff/${member.id}`} className="font-medium hover:underline">
-                            {member.full_name}
-                          </Link>
+                          {isAdmin ? (
+                            <Link to={`/staff/${member.id}`} className="font-medium hover:underline">
+                              {member.full_name}
+                            </Link>
+                          ) : (
+                            <span className="font-medium">{member.full_name}</span>
+                          )}
                           <div className="text-xs text-muted-foreground">{member.email}</div>
                         </div>
                       </div>

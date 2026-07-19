@@ -38,6 +38,11 @@ export function useRole() {
     return true;
   };
 
+  const isAdmin = role === 'ADMIN';
+  const isSuperAdmin = role === 'SUPER_ADMIN';
+  /** Password reset, login email, go-live credentials — not FINANCE_ADMIN / HEAD / STAFF */
+  const canManageStaffLogins = isAdmin || isSuperAdmin;
+
   return {
     role,
     hasRole,
@@ -47,9 +52,10 @@ export function useRole() {
     canViewDepartment,
     isStaff: role === 'STAFF',
     isHead: role === 'HEAD',
-    isAdmin: role === 'ADMIN',
-    isSuperAdmin: role === 'SUPER_ADMIN',
+    isAdmin,
+    isSuperAdmin,
     isFinanceAdmin: role === 'FINANCE_ADMIN',
+    canManageStaffLogins,
     canViewPayroll: role === 'ADMIN' || role === 'SUPER_ADMIN' || role === 'FINANCE_ADMIN',
     headDepartments,
   };

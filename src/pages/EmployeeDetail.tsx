@@ -20,6 +20,9 @@ import type { Branch, EmploymentType, Gender, HrStatus, JobGrade, Position } fro
 import { DEFAULT_TEMP_PASSWORD } from "@/lib/tempPassword";
 import { STAFF_EMAIL_DOMAIN, normalizeStaffEmail } from "@/lib/staffEmail";
 import { invokeEdgeFunction } from "@/lib/edgeFunctions";
+import { profileCompleteness } from "@/lib/profileCompleteness";
+import { Progress } from "@/components/ui/progress";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface OnboardingItem {
   id: string;
@@ -31,8 +34,9 @@ interface OnboardingItem {
 
 export default function EmployeeDetail() {
   const { id } = useParams<{ id: string }>();
-  const { hasRole } = useRole();
-  const canAccess = hasRole("ADMIN");
+  const { canManageStaffLogins } = useRole();
+  /** Employee file (incl. password reset) — ADMIN / SUPER_ADMIN only */
+  const canAccess = canManageStaffLogins;
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -208,6 +212,7 @@ export default function EmployeeDetail() {
   const p = profile;
   const completedCount = onboarding.filter((o) => o.is_completed).length;
   const isOffboarded = String(p.hr_status) === "TERMINATED";
+  const completeness = profileCompleteness(p);
 
   return (
     <div className="space-y-6 max-w-5xl animate-fade-in">
@@ -239,9 +244,7 @@ export default function EmployeeDetail() {
                 <DialogHeader>
                   <DialogTitle>Offboard {String(p.full_name)}?</DialogTitle>
                   <DialogDescription>
-                    The employee will be marked <strong>Terminated</strong>, deactivated (cannot log in), removed from
-                    department rosters, and all admins will be notified. This is auditable and can be reversed by editing
-                    HR Status back to Active.
+                    Marks the employee Terminated and deactivates login. Admins are notified.
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-2 py-2">
@@ -266,25 +269,45 @@ export default function EmployeeDetail() {
         </div>
       </div>
 
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">File completeness — {completeness.percent}%</CardTitle>
+          <CardDescription>
+            Staff contact {completeness.staffPercent}% · HR payroll fields {completeness.hrPercent}%
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <Progress value={completeness.percent} className="h-2" />
+          {completeness.missing.length > 0 && (
+            <p className="text-sm text-muted-foreground">
+              Missing: {completeness.missing.join(", ")}
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       <Tabs defaultValue="personal">
         <TabsList>
           <TabsTrigger value="personal">Personal</TabsTrigger>
-          <TabsTrigger value="login">Login &amp; Security</TabsTrigger>
+          <TabsTrigger value="login">Login</TabsTrigger>
           <TabsTrigger value="employment">Employment</TabsTrigger>
           <TabsTrigger value="payroll">Payroll</TabsTrigger>
-          <TabsTrigger value="emergency">Emergency</TabsTrigger>
-          <TabsTrigger value="onboarding">Onboarding ({completedCount}/{onboarding.length})</TabsTrigger>
+          <TabsTrigger value="onboarding">Onboarding ({completedCount}/{onboarding.length || 0})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="login" className="mt-4 space-y-4">
+          <Alert>
+            <KeyRound className="h-4 w-4" />
+            <AlertTitle>Admin only</AlertTitle>
+            <AlertDescription>
+              Only ADMIN and SUPER_ADMIN can change login email or reset passwords. Staff never see this screen.
+            </AlertDescription>
+          </Alert>
+
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Mail className="h-5 w-5" /> Correct login email</CardTitle>
-              <CardDescription>
-                Use this when bulk upload used the wrong email. Updates both Auth login and the staff profile.
-                Must be @{STAFF_EMAIL_DOMAIN}.
-              </CardDescription>
+              <CardTitle className="flex items-center gap-2"><Mail className="h-5 w-5" /> Login email</CardTitle>
+              <CardDescription>Must be @{STAFF_EMAIL_DOMAIN}.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3 max-w-lg">
               <div>
@@ -307,20 +330,20 @@ export default function EmployeeDetail() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><KeyRound className="h-5 w-5" /> Reset password</CardTitle>
               <CardDescription>
-                Sets temporary password to <code className="font-mono">{DEFAULT_TEMP_PASSWORD}</code> and forces a change on next login.
-                For many staff at once, use System → Go-Live Credentials.
+                Temporary password: <code className="font-mono">{DEFAULT_TEMP_PASSWORD}</code> — staff must change it on next login.
+                For many staff, use System → Go-Live Credentials.
               </CardDescription>
             </CardHeader>
             <CardContent>
               <Button variant="outline" onClick={resetStaffPassword} disabled={loginBusy}>
                 {loginBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <KeyRound className="mr-2 h-4 w-4" />}
-                Reset to {DEFAULT_TEMP_PASSWORD}
+                Reset password
               </Button>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="personal" className="mt-4">
+        <TabsContent value="personal" className="mt-4 space-y-4">
           <Card>
             <CardHeader><CardTitle>Personal Details</CardTitle></CardHeader>
             <CardContent className="grid gap-4 md:grid-cols-2">
@@ -342,6 +365,13 @@ export default function EmployeeDetail() {
               </div>
               <div><Label>Date of Birth</Label><Input type="date" value={String(p.date_of_birth ?? "")} onChange={(e) => set("date_of_birth", e.target.value)} /></div>
               <div className="md:col-span-2"><Label>Address</Label><Input value={String(p.address ?? "")} onChange={(e) => set("address", e.target.value)} /></div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader><CardTitle>Next of Kin</CardTitle></CardHeader>
+            <CardContent className="grid gap-4 md:grid-cols-2">
+              <div><Label>Name</Label><Input value={String(p.next_of_kin_name ?? "")} onChange={(e) => set("next_of_kin_name", e.target.value)} /></div>
+              <div><Label>Phone</Label><Input value={String(p.next_of_kin_phone ?? "")} onChange={(e) => set("next_of_kin_phone", e.target.value)} /></div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -421,11 +451,25 @@ export default function EmployeeDetail() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="payroll" className="mt-4">
+        <TabsContent value="payroll" className="mt-4 space-y-4">
           <Card>
-            <CardHeader><CardTitle>Payroll & Statutory</CardTitle></CardHeader>
+            <CardHeader>
+              <CardTitle>Salary — HR only</CardTitle>
+              <CardDescription>Staff cannot change salary. They fill statutory &amp; bank on My Profile.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="max-w-sm">
+                <Label>Basic Salary (KES)</Label>
+                <Input type="number" value={String(p.basic_salary ?? "")} onChange={(e) => set("basic_salary", e.target.value ? +e.target.value : null)} />
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Statutory &amp; bank</CardTitle>
+              <CardDescription>Usually filled by the employee; HR can correct here if needed.</CardDescription>
+            </CardHeader>
             <CardContent className="grid gap-4 md:grid-cols-2">
-              <div><Label>Basic Salary (KES)</Label><Input type="number" value={String(p.basic_salary ?? "")} onChange={(e) => set("basic_salary", e.target.value ? +e.target.value : null)} /></div>
               <div><Label>KRA PIN</Label><Input value={String(p.kra_pin ?? "")} onChange={(e) => set("kra_pin", e.target.value)} /></div>
               <div><Label>NSSF Number</Label><Input value={String(p.nssf_number ?? "")} onChange={(e) => set("nssf_number", e.target.value)} /></div>
               <div><Label>SHIF Number</Label><Input value={String(p.shif_number ?? "")} onChange={(e) => set("shif_number", e.target.value)} /></div>
@@ -434,16 +478,6 @@ export default function EmployeeDetail() {
               <div><Label>Bank Name</Label><Input value={String(p.bank_name ?? "")} onChange={(e) => set("bank_name", e.target.value)} /></div>
               <div><Label>Bank Branch</Label><Input value={String(p.bank_branch ?? "")} onChange={(e) => set("bank_branch", e.target.value)} /></div>
               <div><Label>Account Number</Label><Input value={String(p.bank_account ?? "")} onChange={(e) => set("bank_account", e.target.value)} /></div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="emergency" className="mt-4">
-          <Card>
-            <CardHeader><CardTitle>Next of Kin</CardTitle></CardHeader>
-            <CardContent className="grid gap-4 md:grid-cols-2">
-              <div><Label>Name</Label><Input value={String(p.next_of_kin_name ?? "")} onChange={(e) => set("next_of_kin_name", e.target.value)} /></div>
-              <div><Label>Phone</Label><Input value={String(p.next_of_kin_phone ?? "")} onChange={(e) => set("next_of_kin_phone", e.target.value)} /></div>
             </CardContent>
           </Card>
         </TabsContent>

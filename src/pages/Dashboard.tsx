@@ -7,6 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Progress } from '@/components/ui/progress';
 import {
   Calendar,
   CalendarDays,
@@ -17,11 +19,13 @@ import {
   CheckCircle2,
   AlertTriangle,
   Bell,
+  User,
 } from 'lucide-react';
 import { PushToggle } from '@/components/notifications/PushToggle';
 import { HrDashboard } from '@/components/dashboard/HrDashboard';
 import { startOfWeek, addDays, format } from 'date-fns';
 import type { Database } from '@/integrations/supabase/types';
+import { profileCompleteness } from '@/lib/profileCompleteness';
 
 type ShiftCode = Database['public']['Enums']['shift_code'];
 
@@ -119,6 +123,13 @@ export default function Dashboard() {
       link: '/my-leave',
       color: 'bg-success/10 text-success',
     },
+    {
+      title: 'My Profile',
+      description: 'Update contact & next of kin',
+      icon: User,
+      link: '/my-profile',
+      color: 'bg-primary/10 text-primary',
+    },
   ];
 
   if (isHead || isAdmin || isSuperAdmin) {
@@ -143,6 +154,7 @@ export default function Dashboard() {
 
   const totalShifts = weekShifts.day + weekShifts.night;
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const completeness = profileCompleteness(profile as any);
 
   return (
     <div className="space-y-6">
@@ -160,6 +172,23 @@ export default function Dashboard() {
           {role?.toLowerCase().replace('_', ' ') || 'Staff'}
         </Badge>
       </div>
+
+      {completeness.staffPercent < 100 && (
+        <Alert>
+          <User className="h-4 w-4" />
+          <AlertTitle>Complete your profile ({completeness.staffPercent}%)</AlertTitle>
+          <AlertDescription className="space-y-2">
+            <Progress value={completeness.staffPercent} className="h-2 max-w-md" />
+            <p className="text-sm">
+              Still needed: {completeness.staffMissing.join(', ') || 'almost done'}.
+              {' '}Salary stays with HR.
+            </p>
+            <Button asChild size="sm" variant="outline">
+              <Link to="/my-profile">Open My Profile <ArrowRight className="ml-1 h-4 w-4" /></Link>
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {showHrDashboard && <HrDashboard />}
 
