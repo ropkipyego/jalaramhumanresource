@@ -128,55 +128,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error };
   };
 
-  const signUp = async (email: string, password: string, fullName: string, staffId: string) => {
-    const redirectUrl = `${window.location.origin}/`;
-    
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: {
-          full_name: fullName,
-          staff_id: staffId,
-        },
-      },
-    });
-
-    if (error) {
-      return { error };
-    }
-
-    // Create profile after signup
-    if (data.user) {
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          id: data.user.id,
-          email,
-          full_name: fullName,
-          staff_id: staffId,
-        });
-
-      if (profileError) {
-        console.error('Error creating profile:', profileError);
-        return { error: profileError };
-      }
-
-      // Assign default STAFF role
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: data.user.id,
-          role: 'STAFF',
-        });
-
-      if (roleError) {
-        console.error('Error assigning role:', roleError);
-      }
-    }
-
-    return { error: null };
+  const signUp = async (_email: string, _password: string, _fullName: string, _staffId: string) => {
+    // Invite-only: accounts are created by Admin via Staff Invite / bulk / go-live edge functions.
+    return {
+      error: {
+        message: "Public signup is disabled. Ask HR to invite you with your @jalaram.co.ke email.",
+        name: "AuthApiError",
+        status: 403,
+      } as any,
+    };
   };
 
   const signInWithMagicLink = async (email: string) => {

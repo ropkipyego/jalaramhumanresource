@@ -44,7 +44,15 @@ export default function Auth() {
       if (normalized.endsWith('@jalaramhr.local')) {
         toast({
           title: 'Placeholder email disabled',
-          description: 'Ask HR to replace your login with a @jalaram.co.ke address.',
+          description: `Ask HR to replace your login with a @${STAFF_EMAIL_DOMAIN} address.`,
+          variant: 'destructive',
+        });
+        return;
+      }
+      if (!normalized.endsWith(`@${STAFF_EMAIL_DOMAIN}`)) {
+        toast({
+          title: 'Hospital email required',
+          description: `Sign in with your @${STAFF_EMAIL_DOMAIN} address.`,
           variant: 'destructive',
         });
         return;

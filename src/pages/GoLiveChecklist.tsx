@@ -12,11 +12,25 @@ import {
 type Item = { title: string; detail: string; href?: string; owner: string };
 
 const DEPLOY: Item[] = [
-  { title: "Push database migrations", detail: "Including must_change_password + attendance_payroll_gate", owner: "Dev / you" },
-  { title: "Enable Supabase MFA (TOTP)", detail: "Authentication → Multi-Factor → TOTP", owner: "Dev" },
+  {
+    title: "Run go-live SQL in Supabase",
+    detail:
+      "Dashboard → SQL Editor → New query → paste entire file scripts/supabase-go-live.sql → Run. Adds must_change_password + OT payroll gate + security hardening.",
+    owner: "Dev / you",
+  },
+  {
+    title: "Disable public signup in Supabase",
+    detail: "Authentication → Providers → Email → turn OFF “Enable sign ups” (app already blocks signup).",
+    owner: "Dev",
+  },
+  { title: "Enable Supabase MFA (TOTP)", detail: "Authentication → Multi-Factor → TOTP (admins can enroll in-app)", owner: "Dev" },
   { title: "Configure Auth SMTP", detail: "Workspace/365 for password-reset emails from noreply@" + STAFF_EMAIL_DOMAIN, owner: "IT", href: "/email-security" },
   { title: "Optional: Resend API key", detail: "Only if you want invite emails from the app", owner: "IT", href: "/email-security" },
-  { title: "Redeploy edge functions", detail: "send-invite, create-staff-user, bulk-create-staff, go-live-credentials", owner: "Dev" },
+  {
+    title: "Deploy edge functions",
+    detail: "From repo: supabase login && supabase link --project-ref sfziuvxfeyfhkzmcxpou && bash scripts/deploy-edge-functions.sh",
+    owner: "Dev",
+  },
 ];
 
 const DATA: Item[] = [
@@ -94,11 +108,26 @@ export default function GoLiveChecklist() {
       </div>
 
       <Alert>
-        <CheckCircle2 className="h-4 w-4" />
-        <AlertTitle>Built in the app</AlertTitle>
-        <AlertDescription>
-          Email domain lock, invite-only auth, force password change, admin MFA, approved-OT payroll gate,
-          OT queue, PDF payslips, bank/statutory exports, reports hub, statutory rate editing.
+        <Database className="h-4 w-4" />
+        <AlertTitle>Do this first (must_change_password)</AlertTitle>
+        <AlertDescription className="space-y-2 text-sm mt-2">
+          <p>
+            Open{" "}
+            <a
+              className="underline font-medium"
+              href="https://supabase.com/dashboard/project/sfziuvxfeyfhkzmcxpou/sql/new"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Supabase SQL Editor
+            </a>
+            , paste the full contents of <code className="text-xs">scripts/supabase-go-live.sql</code> from this repo, click{" "}
+            <strong>Run</strong>. Until that succeeds, Go-Live Credentials will warn that the column is missing.
+          </p>
+          <p className="text-muted-foreground">
+            Built in the app already: domain lock, invite-only auth, force password change UI, admin MFA soft gate,
+            approved-OT payroll, PDF payslips, exports, reports.
+          </p>
         </AlertDescription>
       </Alert>
 

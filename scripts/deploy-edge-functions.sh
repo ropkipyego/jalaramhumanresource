@@ -7,4 +7,5 @@ supabase functions deploy go-live-credentials
 supabase functions deploy create-staff-user
 supabase functions deploy bulk-create-staff
 supabase functions deploy send-invite
+supabase functions deploy send-push || true
 echo "Done. Test: System → Go-Live Credentials → Reset ALL"
