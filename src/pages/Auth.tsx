@@ -62,7 +62,7 @@ export default function Auth() {
         toast({
           title: 'Login Failed',
           description: error.message === 'Invalid login credentials'
-            ? 'Invalid email or password. First login uses ChangeMe123! if HR reset your account.'
+            ? 'Invalid email or password. Ask HR if you need a password reset.'
             : error.message,
           variant: 'destructive',
         });
@@ -146,7 +146,7 @@ export default function Auth() {
                   />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  First login after HR reset: <code className="font-mono">ChangeMe123!</code> — you will be asked to set a new password.
+                  If HR reset your account, use the temporary password they gave you — you will be asked to set a new one.
                 </p>
               </div>
               <Button type="submit" className="w-full" disabled={isLoading}>

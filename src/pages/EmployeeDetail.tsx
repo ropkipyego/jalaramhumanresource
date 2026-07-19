@@ -15,8 +15,11 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { ArrowLeft, CheckCircle2, Circle, Loader2, User, UserX } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Circle, KeyRound, Loader2, Mail, User, UserX } from "lucide-react";
 import type { Branch, EmploymentType, Gender, HrStatus, JobGrade, Position } from "@/types/database";
+import { DEFAULT_TEMP_PASSWORD } from "@/lib/tempPassword";
+import { STAFF_EMAIL_DOMAIN, normalizeStaffEmail } from "@/lib/staffEmail";
+import { invokeEdgeFunction } from "@/lib/edgeFunctions";
 
 interface OnboardingItem {
   id: string;
@@ -42,6 +45,8 @@ export default function EmployeeDetail() {
   const [offboardOpen, setOffboardOpen] = useState(false);
   const [offboardReason, setOffboardReason] = useState("");
   const [offboarding, setOffboarding] = useState(false);
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginBusy, setLoginBusy] = useState(false);
 
   const load = async () => {
     if (!id) return;
@@ -56,6 +61,7 @@ export default function EmployeeDetail() {
     ]);
     if (!prof.data) { setLoading(false); return; }
     setProfile(prof.data);
+    setLoginEmail(String((prof.data as any).email || ""));
     setBranches((br.data as Branch[]) || []);
     setPositions((pos.data as Position[]) || []);
     setGrades((gr.data as JobGrade[]) || []);
@@ -157,6 +163,48 @@ export default function EmployeeDetail() {
     load();
   };
 
+  const saveLoginEmail = async () => {
+    if (!id) return;
+    const { email, error: normErr } = normalizeStaffEmail(loginEmail);
+    if (normErr) {
+      toast.error(normErr);
+      return;
+    }
+    setLoginBusy(true);
+    const { error } = await invokeEdgeFunction("go-live-credentials", {
+      body: { action: "update_email", user_id: id, email },
+    });
+    setLoginBusy(false);
+    if (error) {
+      toast.error(error);
+      return;
+    }
+    toast.success(`Login email updated to ${email}`);
+    set("email", email);
+    setLoginEmail(email);
+  };
+
+  const resetStaffPassword = async () => {
+    if (!id) return;
+    if (!confirm(`Reset password for ${String(profile?.full_name)} to ${DEFAULT_TEMP_PASSWORD}?\n\nThey must change it on next login.`)) {
+      return;
+    }
+    setLoginBusy(true);
+    const { data, error } = await invokeEdgeFunction<{ reset_count?: number }>("go-live-credentials", {
+      body: { action: "reset_passwords", user_ids: [id], password: DEFAULT_TEMP_PASSWORD },
+    });
+    setLoginBusy(false);
+    if (error) {
+      toast.error(error);
+      return;
+    }
+    toast.success(
+      (data?.reset_count ?? 0) > 0
+        ? `Password set to ${DEFAULT_TEMP_PASSWORD}. Tell the staff member privately.`
+        : "No password was reset (account may be missing)."
+    );
+  };
+
   const p = profile;
   const completedCount = onboarding.filter((o) => o.is_completed).length;
   const isOffboarded = String(p.hr_status) === "TERMINATED";
@@ -222,11 +270,55 @@ export default function EmployeeDetail() {
       <Tabs defaultValue="personal">
         <TabsList>
           <TabsTrigger value="personal">Personal</TabsTrigger>
+          <TabsTrigger value="login">Login &amp; Security</TabsTrigger>
           <TabsTrigger value="employment">Employment</TabsTrigger>
           <TabsTrigger value="payroll">Payroll</TabsTrigger>
           <TabsTrigger value="emergency">Emergency</TabsTrigger>
           <TabsTrigger value="onboarding">Onboarding ({completedCount}/{onboarding.length})</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="login" className="mt-4 space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><Mail className="h-5 w-5" /> Correct login email</CardTitle>
+              <CardDescription>
+                Use this when bulk upload used the wrong email. Updates both Auth login and the staff profile.
+                Must be @{STAFF_EMAIL_DOMAIN}.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3 max-w-lg">
+              <div>
+                <Label>Login email</Label>
+                <Input
+                  type="email"
+                  value={loginEmail}
+                  onChange={(e) => setLoginEmail(e.target.value)}
+                  placeholder={`name@${STAFF_EMAIL_DOMAIN}`}
+                />
+              </div>
+              <Button onClick={saveLoginEmail} disabled={loginBusy}>
+                {loginBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
+                Save email
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><KeyRound className="h-5 w-5" /> Reset password</CardTitle>
+              <CardDescription>
+                Sets temporary password to <code className="font-mono">{DEFAULT_TEMP_PASSWORD}</code> and forces a change on next login.
+                For many staff at once, use System → Go-Live Credentials.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button variant="outline" onClick={resetStaffPassword} disabled={loginBusy}>
+                {loginBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <KeyRound className="mr-2 h-4 w-4" />}
+                Reset to {DEFAULT_TEMP_PASSWORD}
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         <TabsContent value="personal" className="mt-4">
           <Card>

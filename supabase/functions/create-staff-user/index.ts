@@ -41,9 +41,18 @@ serve(async (req) => {
       .maybeSingle();
     if (!roleData) throw new Error("Insufficient permissions");
 
-const body: CreateUserRequest = await req.json();
-    const { password, fullName, role, departmentId, staffId, phone } = body;
-    let { email } = body;
+    const body: CreateUserRequest = await req.json();
+    const { password, fullName, departmentId, staffId, phone } = body;
+    let { email, role } = body;
+    role = (role || "STAFF").toUpperCase();
+
+    const callerIsSuper = roleData.role === "SUPER_ADMIN";
+    const allowedRoles = callerIsSuper
+      ? new Set(["STAFF", "HEAD", "ADMIN", "FINANCE_ADMIN", "SUPER_ADMIN"])
+      : new Set(["STAFF", "HEAD", "ADMIN"]);
+    if (!allowedRoles.has(role)) {
+      throw new Error(`Role "${role}" is not allowed for your account`);
+    }
 
     if (!email || !password) throw new Error("Email and password are required");
     if (password.length < 8) throw new Error("Password must be at least 8 characters");

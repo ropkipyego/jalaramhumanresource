@@ -167,6 +167,47 @@ serve(async (req) => {
       );
     }
 
+    if (action === "update_email") {
+      const userId = body.user_id as string;
+      const rawEmail = (body.email || "").toString().toLowerCase().trim();
+      if (!userId) throw new Error("user_id is required");
+      if (!rawEmail.includes("@") || !rawEmail.endsWith("@jalaram.co.ke")) {
+        throw new Error("Email must be a valid @jalaram.co.ke address");
+      }
+
+      const { data: dup } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("email", rawEmail)
+        .neq("id", userId)
+        .maybeSingle();
+      if (dup) throw new Error(`Email ${rawEmail} is already used by another staff member`);
+
+      const { error: authErr } = await supabase.auth.admin.updateUserById(userId, {
+        email: rawEmail,
+        email_confirm: true,
+      });
+      if (authErr) throw new Error(authErr.message);
+
+      const { error: profErr } = await supabase
+        .from("profiles")
+        .update({ email: rawEmail })
+        .eq("id", userId);
+      if (profErr) throw new Error(profErr.message);
+
+      await supabase.rpc("log_audit", {
+        _action: "staff_email_corrected",
+        _table_name: "profiles",
+        _record_id: userId,
+        _new_data: { email: rawEmail, by: user.id },
+      }).catch(() => null);
+
+      return new Response(
+        JSON.stringify({ success: true, email: rawEmail }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
     throw new Error(`Unknown action: ${action}`);
   } catch (error: any) {
     console.error("go-live-credentials error:", error);

@@ -26,6 +26,18 @@ serve(async (req) => {
     if (!Array.isArray(userIds) || userIds.length === 0) throw new Error("userIds required");
     if (!title) throw new Error("title required");
 
+    // Only self-notify OR HEAD/ADMIN may push to others
+    const { data: roleRow } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .in("role", ["HEAD", "ADMIN", "SUPER_ADMIN"])
+      .maybeSingle();
+    const privileged = !!roleRow;
+    if (!privileged && (userIds.length !== 1 || userIds[0] !== user.id)) {
+      throw new Error("Not allowed to push to other users");
+    }
+
     const { data: vapid } = await supabase.from("app_settings").select("value").eq("key", "vapid").maybeSingle();
     if (!vapid) throw new Error("VAPID keys not initialised — open Settings to enable push first");
     const v = vapid.value as any;

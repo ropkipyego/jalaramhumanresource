@@ -49,7 +49,6 @@ export default function ChangePassword() {
     }
     if (user?.id) {
       await (supabase as any).rpc("set_must_change_password", { _user_id: user.id, _value: false });
-      await supabase.from("profiles").update({ must_change_password: false } as any).eq("id", user.id);
     }
     await refreshProfile?.();
     setBusy(false);
