@@ -13,6 +13,7 @@ import { Loader2, FileSpreadsheet, Download, Upload, CheckCircle2, AlertCircle, 
 import * as XLSX from "xlsx";
 
 import { DEFAULT_TEMP_PASSWORD } from "@/lib/tempPassword";
+import { invokeEdgeFunction } from "@/lib/edgeFunctions";
 
 interface ParsedRow {
   staffId: string;
@@ -118,13 +119,15 @@ const BulkStaffUpload = () => {
     setUploading(true);
     setResults(null);
     try {
-      const { data, error } = await supabase.functions.invoke("bulk-create-staff", { body: { rows: parsedRows } });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      setResults(data.results);
+      const { data, error } = await invokeEdgeFunction<{
+        results: ResultRow[];
+        summary: { created: number; skipped: number; errors: number };
+      }>("bulk-create-staff", { body: { rows: parsedRows } });
+      if (error) throw new Error(error);
+      setResults(data?.results || []);
       toast({
         title: "Upload complete",
-        description: `${data.summary.created} created, ${data.summary.skipped} skipped, ${data.summary.errors} errors.`,
+        description: `${data?.summary?.created ?? 0} created, ${data?.summary?.skipped ?? 0} skipped, ${data?.summary?.errors ?? 0} errors.`,
       });
     } catch (err: any) {
       toast({ title: "Upload failed", description: err.message, variant: "destructive" });

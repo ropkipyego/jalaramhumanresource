@@ -14,6 +14,8 @@ import * as XLSX from "xlsx";
 import {
   AlertTriangle, Download, KeyRound, Loader2, RefreshCw, Search, ShieldAlert, Users,
 } from "lucide-react";
+import { DEFAULT_TEMP_PASSWORD } from "@/lib/tempPassword";
+import { invokeEdgeFunction } from "@/lib/edgeFunctions";
 
 interface StaffRow {
   id: string;
@@ -26,6 +28,7 @@ interface StaffRow {
   hr_status: string;
   has_auth_account: boolean;
   last_sign_in_at: string | null;
+  must_change_password?: boolean;
 }
 
 interface CredentialRow {
@@ -48,22 +51,67 @@ export default function GoLiveCredentials() {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [credentials, setCredentials] = useState<CredentialRow[] | null>(null);
+  const [edgeHint, setEdgeHint] = useState<string | null>(null);
 
+  /** List staff from DB (no edge function required). Auth account flag is best-effort. */
   const load = async () => {
     setLoading(true);
-    const { data, error } = await supabase.functions.invoke("go-live-credentials", {
-      body: { action: "list" },
-    });
+    setEdgeHint(null);
+    const { data: profiles, error: pErr } = await supabase
+      .from("profiles")
+      .select("id, staff_id, full_name, email, is_active, hr_status, must_change_password")
+      .order("full_name");
+    if (pErr) {
+      setLoading(false);
+      toast.error(
+        pErr.message.includes("must_change_password")
+          ? "Run the must_change_password migration in Supabase SQL Editor first."
+          : pErr.message
+      );
+      // Retry without the new column so roster still loads
+      const { data: fallback } = await supabase
+        .from("profiles")
+        .select("id, staff_id, full_name, email, is_active, hr_status")
+        .order("full_name");
+      if (!fallback) return;
+      const { data: roles } = await supabase.from("user_roles").select("user_id, role");
+      const roleMap = new Map((roles || []).map((r: any) => [r.user_id, r.role]));
+      setStaff(
+        fallback.map((p: any) => ({
+          id: p.id,
+          staff_id: p.staff_id,
+          full_name: p.full_name,
+          email: p.email,
+          login_email: p.email,
+          role: roleMap.get(p.id) || "STAFF",
+          is_active: p.is_active,
+          hr_status: p.hr_status,
+          has_auth_account: true,
+          last_sign_in_at: null,
+        }))
+      );
+      setLoading(false);
+      return;
+    }
+
+    const { data: roles } = await supabase.from("user_roles").select("user_id, role");
+    const roleMap = new Map((roles || []).map((r: any) => [r.user_id, r.role]));
+    setStaff(
+      (profiles || []).map((p: any) => ({
+        id: p.id,
+        staff_id: p.staff_id,
+        full_name: p.full_name,
+        email: p.email,
+        login_email: p.email,
+        role: roleMap.get(p.id) || "STAFF",
+        is_active: p.is_active,
+        hr_status: p.hr_status,
+        has_auth_account: true,
+        last_sign_in_at: null,
+        must_change_password: p.must_change_password,
+      }))
+    );
     setLoading(false);
-    if (error) {
-      toast.error(error.message || "Failed to load staff. Deploy the go-live-credentials edge function first.");
-      return;
-    }
-    if (data?.error) {
-      toast.error(data.error);
-      return;
-    }
-    setStaff((data?.staff as StaffRow[]) || []);
   };
 
   useEffect(() => {
@@ -93,7 +141,7 @@ export default function GoLiveCredentials() {
 
   const toggleAllFiltered = () => {
     const ids = filtered.filter((r) => r.has_auth_account).map((r) => r.id);
-    const allSelected = ids.every((id) => selected.has(id));
+    const allSelected = ids.length > 0 && ids.every((id) => selected.has(id));
     setSelected((prev) => {
       const next = new Set(prev);
       if (allSelected) ids.forEach((id) => next.delete(id));
@@ -110,14 +158,13 @@ export default function GoLiveCredentials() {
       Role: r.role,
       Status: r.hr_status,
       Active: r.is_active ? "Yes" : "No",
-      "Has Login": r.has_auth_account ? "Yes" : "No",
-      "Last Sign In": r.last_sign_in_at || "",
+      "Must Change Password": r.must_change_password ? "Yes" : "No",
     }));
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Staff Logins");
     XLSX.writeFile(wb, `staff-login-roster-${new Date().toISOString().slice(0, 10)}.xlsx`);
-    toast.success("Roster downloaded (emails only — passwords are not stored in plaintext)");
+    toast.success("Roster downloaded");
   };
 
   const downloadCredentials = (rows: CredentialRow[]) => {
@@ -133,7 +180,7 @@ export default function GoLiveCredentials() {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Credentials");
     XLSX.writeFile(wb, `go-live-credentials-${new Date().toISOString().slice(0, 10)}.xlsx`);
-    toast.success(`Downloaded ${ready.length} temporary passwords — keep this file secure`);
+    toast.success(`Downloaded ${ready.length} rows — password is ${DEFAULT_TEMP_PASSWORD}`);
   };
 
   const resetPasswords = async (allActive: boolean) => {
@@ -144,31 +191,33 @@ export default function GoLiveCredentials() {
     }
 
     const label = allActive
-      ? "Reset passwords for ALL active staff with login accounts?"
-      : `Reset passwords for ${user_ids.length} selected staff?`;
-    if (!confirm(`${label}\n\nThis invalidates their current passwords. Download the Excel file immediately after.`)) {
+      ? `Reset ALL active staff passwords to ${DEFAULT_TEMP_PASSWORD}?`
+      : `Reset ${user_ids.length} selected staff to ${DEFAULT_TEMP_PASSWORD}?`;
+    if (!confirm(`${label}\n\nThey must change password on next login.`)) {
       return;
     }
 
     setBusy(true);
-    const { data, error } = await supabase.functions.invoke("go-live-credentials", {
-      body: { action: "reset_passwords", user_ids },
+    const { data, error } = await invokeEdgeFunction<{
+      credentials: CredentialRow[];
+      reset_count: number;
+      error?: string;
+    }>("go-live-credentials", {
+      body: { action: "reset_passwords", user_ids, password: DEFAULT_TEMP_PASSWORD },
     });
     setBusy(false);
 
     if (error) {
-      toast.error(error.message);
-      return;
-    }
-    if (data?.error) {
-      toast.error(data.error);
+      setEdgeHint(error);
+      toast.error(error);
       return;
     }
 
-    const creds = (data?.credentials as CredentialRow[]) || [];
+    const creds = data?.credentials || [];
     setCredentials(creds);
-    downloadCredentials(creds);
-    toast.success(`Reset ${data?.reset_count ?? 0} passwords. File downloaded.`);
+    if (creds.length) downloadCredentials(creds);
+    toast.success(`Reset ${data?.reset_count ?? 0} passwords to ${DEFAULT_TEMP_PASSWORD}`);
+    load();
   };
 
   if (!canAccess) return <Navigate to="/dashboard" replace />;
@@ -205,6 +254,21 @@ export default function GoLiveCredentials() {
           </p>
         </AlertDescription>
       </Alert>
+
+      {edgeHint && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Edge Function not deployed</AlertTitle>
+          <AlertDescription className="space-y-2 text-sm">
+            <p>{edgeHint}</p>
+            <p>
+              From your machine (logged into Supabase CLI linked to project <code>sfziuvxfeyfhkzmcxpou</code>):
+            </p>
+            <pre className="rounded bg-muted p-2 text-xs overflow-x-auto">supabase functions deploy go-live-credentials{"\n"}supabase functions deploy bulk-create-staff{"\n"}supabase functions deploy create-staff-user</pre>
+            <p>Roster list still works from the database. Password reset needs the function.</p>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="flex flex-wrap gap-2">
         <Button variant="outline" onClick={load} disabled={loading}>

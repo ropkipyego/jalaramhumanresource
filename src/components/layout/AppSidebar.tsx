@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRole } from '@/hooks/useRole';
@@ -7,15 +7,18 @@ import {
   SidebarMenu, SidebarMenuButton, SidebarMenuItem,
   SidebarGroup, SidebarGroupLabel, SidebarGroupContent,
 } from '@/components/ui/sidebar';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   Calendar, CalendarDays, ClipboardList, Users, Settings, Shield, LogOut,
   Home, UserCircle, UserPlus, FileSpreadsheet, Building2, Calculator,
   Landmark, ShieldCheck, User, Clock, CalendarCheck, SlidersHorizontal,
   Briefcase, Layers, AlertTriangle, FileText, RefreshCw, Phone,
   Banknote, Megaphone, BarChart3, GraduationCap, Package, UserSearch,
-  Target, KeyRound, Gavel, FolderOpen, Timer, Rocket,
+  Target, KeyRound, Gavel, FolderOpen, Timer, Rocket, ChevronDown,
+  Hospital,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 interface NavItem {
   title: string;
@@ -24,7 +27,14 @@ interface NavItem {
   roles?: string[];
 }
 
-/** Self-service — every employee */
+interface NavGroup {
+  id: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  items: NavItem[];
+  defaultOpen?: boolean;
+}
+
 const selfServiceNav: NavItem[] = [
   { title: 'Dashboard', url: '/dashboard', icon: Home },
   { title: 'My Profile', url: '/my-profile', icon: User },
@@ -32,7 +42,6 @@ const selfServiceNav: NavItem[] = [
   { title: 'Announcements', url: '/announcements', icon: Megaphone },
 ];
 
-/** Rota module — scheduling only */
 const rotaNav: NavItem[] = [
   { title: 'My Rota', url: '/my-rota', icon: Calendar },
   { title: 'Department Rota', url: '/rota', icon: ClipboardList, roles: ['HEAD', 'ADMIN', 'SUPER_ADMIN'] },
@@ -42,7 +51,6 @@ const rotaNav: NavItem[] = [
   { title: 'Department Rules', url: '/rules', icon: Settings, roles: ['HEAD', 'ADMIN', 'SUPER_ADMIN'] },
 ];
 
-/** Attendance module — clock, biometric, exceptions */
 const attendanceNav: NavItem[] = [
   { title: 'My Attendance', url: '/attendance/my', icon: Clock },
   { title: 'Attendance Hub', url: '/attendance', icon: Clock, roles: ['HEAD', 'ADMIN', 'SUPER_ADMIN', 'FINANCE_ADMIN'] },
@@ -55,7 +63,6 @@ const attendanceNav: NavItem[] = [
   { title: 'Attendance Settings', url: '/attendance/settings', icon: Settings, roles: ['SUPER_ADMIN'] },
 ];
 
-/** HR module — people lifecycle (NOT payroll, NOT rota) */
 const hrNav: NavItem[] = [
   { title: 'Staff Directory', url: '/staff', icon: Users, roles: ['HEAD', 'ADMIN', 'SUPER_ADMIN'] },
   { title: 'Invite Staff', url: '/invite', icon: UserPlus, roles: ['ADMIN', 'SUPER_ADMIN'] },
@@ -76,7 +83,6 @@ const hrNav: NavItem[] = [
   { title: 'Job Grades', url: '/grades', icon: Layers, roles: ['SUPER_ADMIN'] },
 ];
 
-/** Payroll module — money only */
 const payrollNav: NavItem[] = [
   { title: 'My Payslips', url: '/my-payslips', icon: FileText },
   { title: 'Payroll Periods', url: '/payroll', icon: Calculator, roles: ['ADMIN', 'SUPER_ADMIN', 'FINANCE_ADMIN'] },
@@ -85,7 +91,6 @@ const payrollNav: NavItem[] = [
   { title: 'Reports & Exports', url: '/reports', icon: BarChart3, roles: ['ADMIN', 'SUPER_ADMIN', 'FINANCE_ADMIN'] },
 ];
 
-/** System */
 const systemNav: NavItem[] = [
   { title: 'Organization', url: '/organization', icon: Building2, roles: ['SUPER_ADMIN'] },
   { title: 'Go-Live Checklist', url: '/go-live', icon: Rocket, roles: ['ADMIN', 'SUPER_ADMIN', 'FINANCE_ADMIN'] },
@@ -94,6 +99,23 @@ const systemNav: NavItem[] = [
   { title: 'Audit Logs', url: '/audit-logs', icon: Shield, roles: ['ADMIN', 'SUPER_ADMIN'] },
 ];
 
+const NAV_GROUPS: NavGroup[] = [
+  { id: 'self', label: 'Self Service', icon: User, items: selfServiceNav, defaultOpen: true },
+  { id: 'hr', label: 'Human Resources', icon: Users, items: hrNav },
+  { id: 'rota', label: 'Rota & Scheduling', icon: Calendar, items: rotaNav },
+  { id: 'attendance', label: 'Time & Attendance', icon: Clock, items: attendanceNav },
+  { id: 'payroll', label: 'Payroll & Finance', icon: Calculator, items: payrollNav },
+  { id: 'system', label: 'System', icon: Settings, items: systemNav },
+];
+
+function pathInGroup(pathname: string, items: NavItem[]) {
+  return items.some((i) =>
+    pathname === i.url ||
+    (i.url !== '/' && i.url !== '/attendance' && pathname.startsWith(i.url + '/')) ||
+    (i.url === '/attendance' && pathname === '/attendance')
+  );
+}
+
 export function AppSidebar() {
   const { signOut, profile } = useAuth();
   const { role, hasRole } = useRole();
@@ -101,6 +123,18 @@ export function AppSidebar() {
 
   const filterByRole = (items: NavItem[]) =>
     items.filter((i) => !i.roles || i.roles.some((r) => hasRole(r as any)));
+
+  const initialOpen = useMemo(() => {
+    const open: Record<string, boolean> = {};
+    for (const g of NAV_GROUPS) {
+      const visible = filterByRole(g.items);
+      open[g.id] = g.defaultOpen || pathInGroup(location.pathname, visible);
+    }
+    return open;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- open once from current route
+  }, []);
+
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(initialOpen);
 
   const renderNavItem = (item: NavItem) => {
     const isActive =
@@ -111,7 +145,7 @@ export function AppSidebar() {
       <SidebarMenuItem key={item.url}>
         <SidebarMenuButton asChild isActive={isActive}>
           <NavLink to={item.url} className="flex items-center gap-3">
-            <item.icon className="h-4 w-4" />
+            <item.icon className="h-4 w-4 shrink-0" />
             <span>{item.title}</span>
           </NavLink>
         </SidebarMenuButton>
@@ -119,42 +153,57 @@ export function AppSidebar() {
     );
   };
 
-  const renderGroup = (label: string, items: NavItem[]) => {
-    const visible = filterByRole(items);
-    if (visible.length === 0) return null;
-    return (
-      <SidebarGroup key={label}>
-        <SidebarGroupLabel className="text-[11px] font-semibold tracking-wide uppercase text-sidebar-foreground/70">
-          {label}
-        </SidebarGroupLabel>
-        <SidebarGroupContent>
-          <SidebarMenu>{visible.map(renderNavItem)}</SidebarMenu>
-        </SidebarGroupContent>
-      </SidebarGroup>
-    );
-  };
-
   return (
     <Sidebar>
       <SidebarHeader className="border-b border-sidebar-border p-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <ClipboardList className="h-5 w-5" />
+          <div className="relative flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
+            <Hospital className="h-5 w-5" />
           </div>
-          <div className="flex flex-col">
-            <span className="text-sm font-semibold">Jalaram HR</span>
+          <div className="flex flex-col min-w-0">
+            <span className="text-sm font-semibold truncate">Jalaram Hospital</span>
             <span className="text-xs text-muted-foreground">HR · Rota · Payroll</span>
           </div>
         </div>
       </SidebarHeader>
 
       <SidebarContent>
-        {renderGroup('Self Service', selfServiceNav)}
-        {renderGroup('1 · Human Resources', hrNav)}
-        {renderGroup('2 · Rota & Scheduling', rotaNav)}
-        {renderGroup('3 · Time & Attendance', attendanceNav)}
-        {renderGroup('4 · Payroll & Finance', payrollNav)}
-        {renderGroup('System', systemNav)}
+        {NAV_GROUPS.map((group) => {
+          const visible = filterByRole(group.items);
+          if (visible.length === 0) return null;
+          const isOpen = openGroups[group.id] ?? false;
+          const GroupIcon = group.icon;
+          return (
+            <Collapsible
+              key={group.id}
+              open={isOpen}
+              onOpenChange={(next) => setOpenGroups((prev) => ({ ...prev, [group.id]: next }))}
+              className="group/collapsible"
+            >
+              <SidebarGroup className="py-1">
+                <SidebarGroupLabel asChild className="p-0">
+                  <CollapsibleTrigger className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
+                    <GroupIcon className="h-4 w-4 shrink-0 text-primary" />
+                    <span className="flex-1 truncate normal-case text-xs font-semibold tracking-normal">
+                      {group.label}
+                    </span>
+                    <ChevronDown
+                      className={cn(
+                        'h-4 w-4 shrink-0 transition-transform duration-200',
+                        isOpen ? 'rotate-0' : '-rotate-90'
+                      )}
+                    />
+                  </CollapsibleTrigger>
+                </SidebarGroupLabel>
+                <CollapsibleContent>
+                  <SidebarGroupContent>
+                    <SidebarMenu>{visible.map(renderNavItem)}</SidebarMenu>
+                  </SidebarGroupContent>
+                </CollapsibleContent>
+              </SidebarGroup>
+            </Collapsible>
+          );
+        })}
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border p-4">
@@ -169,9 +218,12 @@ export function AppSidebar() {
             </span>
           </div>
         </div>
-        <Button variant="ghost" size="sm"
+        <Button
+          variant="ghost"
+          size="sm"
           className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
-          onClick={signOut}>
+          onClick={signOut}
+        >
           <LogOut className="h-4 w-4" /> Sign Out
         </Button>
       </SidebarFooter>

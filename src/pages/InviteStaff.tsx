@@ -14,6 +14,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { STAFF_EMAIL_DOMAIN, normalizeStaffEmail } from "@/lib/staffEmail";
 import { DEFAULT_TEMP_PASSWORD } from "@/lib/tempPassword";
 import { PasswordInput } from "@/components/ui/password-input";
+import { invokeEdgeFunction } from "@/lib/edgeFunctions";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
 
@@ -105,20 +106,22 @@ const InviteStaff = () => {
 
     setSubmitting(true);
     try {
-      const { data, error } = await supabase.functions.invoke("create-staff-user", { body: payload });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      const { data, error } = await invokeEdgeFunction<{ success?: boolean; error?: string }>(
+        "create-staff-user",
+        { body: payload }
+      );
+      if (error) throw new Error(error);
 
       setLastCreated({ email, password, staffId });
       toast({
         title: "Account Created",
-        description: `${email} can log in now. Share their password securely.`,
+        description: `${email} can log in with password ${password}. They must change it on first login.`,
       });
 
       setEmail("");
       setFullName("");
       setStaffId("");
-      setPassword(randomPassword());
+      setPassword(DEFAULT_TEMP_PASSWORD);
       setSelectedRole("STAFF");
       setDepartmentId("");
     } catch (error: any) {
