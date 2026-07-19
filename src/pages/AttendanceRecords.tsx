@@ -33,7 +33,7 @@ const statusColor: Record<string, string> = {
 
 export default function AttendanceRecords() {
   const { hasRole } = useRole();
-  const canManage = hasRole("ADMIN");
+  const canManage = hasRole("ADMIN") || hasRole("HEAD") || hasRole("SUPER_ADMIN");
 
   const [rows, setRows] = useState<DailyRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,7 +41,9 @@ export default function AttendanceRecords() {
   const [from, setFrom] = useState(format(subDays(new Date(), 14), "yyyy-MM-dd"));
   const [to, setTo] = useState(format(new Date(), "yyyy-MM-dd"));
   const [statusFilter, setStatusFilter] = useState("all");
+  const [approvalFilter, setApprovalFilter] = useState("all");
   const [search, setSearch] = useState("");
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -73,25 +75,30 @@ export default function AttendanceRecords() {
     }
   };
 
-  const approve = async (id: string) => {
-    const { error } = await supabase.from("attendance_daily").update({
-      approval_status: "APPROVED", approved_at: new Date().toISOString(),
-    }).eq("id", id);
+  const setApproval = async (id: string, status: "APPROVED" | "REJECTED") => {
+    setBusyId(id);
+    const { error } = await (supabase as any).rpc("bulk_set_attendance_approval", {
+      _ids: [id],
+      _status: status,
+      _zero_ot_on_reject: true,
+    });
+    setBusyId(null);
     if (error) toast.error(error.message);
-    else { toast.success("Approved"); load(); }
+    else { toast.success(status === "APPROVED" ? "Approved" : "Rejected (OT zeroed)"); load(); }
   };
 
   const filtered = useMemo(() => {
     const s = search.trim().toLowerCase();
     return rows.filter((r) => {
       if (statusFilter !== "all" && r.status !== statusFilter) return false;
+      if (approvalFilter !== "all" && r.approval_status !== approvalFilter) return false;
       if (!s) return true;
       return (
         r.employee?.full_name?.toLowerCase().includes(s) ||
         r.employee?.staff_id?.toLowerCase().includes(s)
       );
     });
-  }, [rows, search, statusFilter]);
+  }, [rows, search, statusFilter, approvalFilter]);
 
   const fmtTime = (ts: string | null) => ts ? format(new Date(ts), "HH:mm") : "—";
   const fmtMins = (m: number) => m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m`;
@@ -103,7 +110,7 @@ export default function AttendanceRecords() {
           <h1 className="text-3xl font-bold">Daily Attendance</h1>
           <p className="text-muted-foreground">Computed from biometric punches and rota expectations.</p>
         </div>
-        {canManage && (
+        {hasRole("ADMIN") && (
           <Button variant="outline" onClick={recompute} disabled={computing}>
             {computing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
             Recompute Range
@@ -125,6 +132,15 @@ export default function AttendanceRecords() {
                 {["PRESENT", "LATE", "ABSENT", "PARTIAL", "ON_LEAVE", "OFF"].map((s) => (
                   <SelectItem key={s} value={s}>{s}</SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+            <Select value={approvalFilter} onValueChange={setApprovalFilter}>
+              <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All approvals</SelectItem>
+                <SelectItem value="PENDING">Pending</SelectItem>
+                <SelectItem value="APPROVED">Approved</SelectItem>
+                <SelectItem value="REJECTED">Rejected</SelectItem>
               </SelectContent>
             </Select>
             <div className="relative flex-1 min-w-48">
@@ -174,11 +190,15 @@ export default function AttendanceRecords() {
                       <Badge variant={(statusColor[r.status] as "default") || "outline"}>{r.status}</Badge>
                     </TableCell>
                     {canManage && (
-                      <TableCell className="text-right">
+                      <TableCell className="text-right space-x-1">
                         {r.approval_status === "PENDING" && r.status !== "OFF" && r.status !== "ON_LEAVE" && (
-                          <Button size="sm" variant="ghost" onClick={() => approve(r.id)}>Approve</Button>
+                          <>
+                            <Button size="sm" variant="ghost" disabled={busyId === r.id} onClick={() => setApproval(r.id, "APPROVED")}>Approve</Button>
+                            <Button size="sm" variant="ghost" disabled={busyId === r.id} onClick={() => setApproval(r.id, "REJECTED")}>Reject</Button>
+                          </>
                         )}
                         {r.approval_status === "APPROVED" && <Badge variant="outline" className="text-xs">Approved</Badge>}
+                        {r.approval_status === "REJECTED" && <Badge variant="destructive" className="text-xs">Rejected</Badge>}
                       </TableCell>
                     )}
                   </TableRow>

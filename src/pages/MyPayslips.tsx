@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { FileText, Loader2, Printer } from "lucide-react";
+import { FileText, Loader2, Printer, Download } from "lucide-react";
+import { downloadPayslipPdf } from "@/lib/payslipPdf";
 
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const fmt = (n: number | null | undefined) =>
@@ -57,7 +58,7 @@ export default function MyPayslips() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">My Payslips</h1>
-        <p className="text-muted-foreground">View and print your payroll history.</p>
+        <p className="text-muted-foreground">View, print, or download PDF payslips.</p>
       </div>
 
       <Card>
@@ -131,9 +132,32 @@ export default function MyPayslips() {
                   ))}
                 </TableBody>
               </Table>
-              <Button onClick={() => window.print()} className="print:hidden">
-                <Printer className="h-4 w-4 mr-2" />Print
-              </Button>
+              <div className="flex gap-2 print:hidden">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    if (!selected) return;
+                    downloadPayslipPdf({
+                      periodLabel: periodLabel(selected),
+                      employeeName: profile?.full_name || "Employee",
+                      staffId: profile?.staff_id,
+                      kraPin: (profile as any)?.kra_pin,
+                      bankName: (profile as any)?.bank_name,
+                      bankAccount: (profile as any)?.bank_account,
+                      grossEarnings: selected.gross_earnings,
+                      totalDeductions: selected.total_deductions,
+                      netPay: selected.net_pay,
+                      items,
+                    });
+                    toast.success("Payslip PDF downloaded");
+                  }}
+                >
+                  <Download className="h-4 w-4 mr-2" />Download PDF
+                </Button>
+                <Button onClick={() => window.print()}>
+                  <Printer className="h-4 w-4 mr-2" />Print
+                </Button>
+              </div>
             </div>
           )}
         </DialogContent>

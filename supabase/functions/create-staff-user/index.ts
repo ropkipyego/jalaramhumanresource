@@ -41,13 +41,18 @@ serve(async (req) => {
       .maybeSingle();
     if (!roleData) throw new Error("Insufficient permissions");
 
-    const body: CreateUserRequest = await req.json();
-    const { email, password, fullName, role, departmentId, staffId, phone } = body;
+const body: CreateUserRequest = await req.json();
+    const { password, fullName, role, departmentId, staffId, phone } = body;
+    let { email } = body;
 
     if (!email || !password) throw new Error("Email and password are required");
     if (password.length < 8) throw new Error("Password must be at least 8 characters");
 
+    const EMAIL_DOMAIN = "jalaram.co.ke";
     const normEmail = email.toLowerCase().trim();
+    if (!normEmail.endsWith(`@${EMAIL_DOMAIN}`)) {
+      throw new Error(`Email must use @${EMAIL_DOMAIN}`);
+    }
     const normStaffId = staffId?.trim() || null;
 
     // Duplicate checks

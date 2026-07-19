@@ -16,13 +16,25 @@ interface Row {
 }
 
 const VALID_ROLES = new Set(["STAFF", "HEAD", "ADMIN"]);
-const EMAIL_DOMAIN = "jalaramhr.local";
+const EMAIL_DOMAIN = "jalaram.co.ke";
 
 const slugifyStaffId = (s: string) =>
-  s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  s.toLowerCase().replace(/[^a-z0-9]+/g, ".").replace(/^\.+|\.+$/g, "");
 
 const makeCode = (name: string) =>
   name.toUpperCase().replace(/[^A-Z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 16) || "DEPT";
+
+const resolveEmail = (raw: string, staffId: string): string => {
+  const email = (raw || "").toLowerCase().trim();
+  if (!email || !email.includes("@")) {
+    return `${slugifyStaffId(staffId)}@${EMAIL_DOMAIN}`;
+  }
+  const domain = email.split("@")[1];
+  if (domain !== EMAIL_DOMAIN) {
+    throw new Error(`Email must be @${EMAIL_DOMAIN} (got ${email})`);
+  }
+  return email;
+};
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -79,10 +91,8 @@ serve(async (req) => {
         if (!password || password.length < 8) throw new Error("Password must be 8+ chars");
         if (!VALID_ROLES.has(role)) throw new Error(`Invalid role "${role}"`);
 
-        // Auto-generate placeholder email from Staff ID if blank/invalid
-        if (!email || !email.includes("@")) {
-          email = `${slugifyStaffId(staffId)}@${EMAIL_DOMAIN}`;
-        }
+        // Official hospital domain only (@jalaram.co.ke)
+        email = resolveEmail(email, staffId);
 
         // In-batch duplicate guard
         if (seenStaffIds.has(staffId)) {

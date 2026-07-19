@@ -38,6 +38,9 @@ interface StaffRow {
   contract_end_date: string | null;
   practicing_license_no: string | null;
   license_expiry_date: string | null;
+  bank_name: string | null;
+  bank_branch: string | null;
+  bank_account: string | null;
 }
 
 const complianceSchema = z.object({
@@ -53,6 +56,9 @@ const complianceSchema = z.object({
   contract_end_date: z.string().optional().or(z.literal('')),
   practicing_license_no: z.string().trim().max(50).optional().or(z.literal('')),
   license_expiry_date: z.string().optional().or(z.literal('')),
+  bank_name: z.string().trim().max(100).optional().or(z.literal('')),
+  bank_branch: z.string().trim().max(100).optional().or(z.literal('')),
+  bank_account: z.string().trim().max(50).optional().or(z.literal('')),
 });
 
 export default function StaffCompliance() {
@@ -68,7 +74,7 @@ export default function StaffCompliance() {
     setLoading(true);
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, staff_id, full_name, email, designation, employment_type, hr_status, kra_pin, nssf_number, shif_number, national_id, basic_salary, date_joined, contract_end_date, practicing_license_no, license_expiry_date')
+      .select('id, staff_id, full_name, email, designation, employment_type, hr_status, kra_pin, nssf_number, shif_number, national_id, basic_salary, date_joined, contract_end_date, practicing_license_no, license_expiry_date, bank_name, bank_branch, bank_account')
       .order('full_name');
     if (error) toast.error(error.message);
     setRows((data as StaffRow[]) || []);
@@ -87,7 +93,9 @@ export default function StaffCompliance() {
     );
   }, [rows, q]);
 
-  const missingCount = rows.filter((r) => !r.kra_pin || !r.basic_salary).length;
+  const missingCount = rows.filter((r) =>
+    !r.kra_pin || !r.basic_salary || !r.bank_name || !r.bank_account || !r.nssf_number || !r.shif_number
+  ).length;
 
   if (!canViewPayroll) return <Navigate to="/dashboard" replace />;
 
@@ -125,16 +133,16 @@ export default function StaffCompliance() {
           <ShieldCheck className="h-7 w-7 text-primary" /> Staff Compliance & Payroll Data
         </h1>
         <p className="text-muted-foreground">
-          Capture KRA PIN, NSSF, SHIF, employment type and basic salary. Required for Phase 2 payroll runs.
+          Capture KRA, NSSF, SHIF, bank details, and basic salary before payroll runs.
         </p>
       </div>
 
       {missingCount > 0 && (
         <Alert>
           <ShieldAlert className="h-4 w-4" />
-          <AlertTitle>{missingCount} staff missing KRA PIN or basic salary</AlertTitle>
+          <AlertTitle>{missingCount} staff incomplete for payroll / bank export</AlertTitle>
           <AlertDescription>
-            These employees will be excluded from Phase 2 payroll runs until the missing fields are provided.
+            Missing KRA, basic salary, bank, NSSF, or SHIF. Fix before locking attendance and exporting bank CSV.
           </AlertDescription>
         </Alert>
       )}
@@ -244,6 +252,9 @@ export default function StaffCompliance() {
             <Field label="Contract End" type="date" value={form.contract_end_date ?? ''} onChange={(v) => setForm({ ...form, contract_end_date: v })} />
             <Field label="Practicing License No." value={form.practicing_license_no ?? ''} onChange={(v) => setForm({ ...form, practicing_license_no: v })} />
             <Field label="License Expiry" type="date" value={form.license_expiry_date ?? ''} onChange={(v) => setForm({ ...form, license_expiry_date: v })} />
+            <Field label="Bank Name" value={form.bank_name ?? ''} onChange={(v) => setForm({ ...form, bank_name: v })} />
+            <Field label="Bank Branch" value={form.bank_branch ?? ''} onChange={(v) => setForm({ ...form, bank_branch: v })} />
+            <Field label="Bank Account" value={form.bank_account ?? ''} onChange={(v) => setForm({ ...form, bank_account: v })} />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditing(null)}>Cancel</Button>

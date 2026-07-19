@@ -5,3 +5,9 @@ verify_jwt = false
 
 [functions.create-staff-user]
 verify_jwt = false
+
+[functions.go-live-credentials]
+verify_jwt = false
+
+[functions.bulk-create-staff]
+verify_jwt = false

@@ -93,6 +93,7 @@ export interface Profile {
   phone: string | null;
   avatar_url: string | null;
   is_active: boolean;
+  must_change_password?: boolean;
   branch_id?: string | null;
   position_id?: string | null;
   grade_id?: string | null;

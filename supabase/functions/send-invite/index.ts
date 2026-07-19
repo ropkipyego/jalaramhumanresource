@@ -57,6 +57,12 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Email is required");
     }
 
+    const EMAIL_DOMAIN = "jalaram.co.ke";
+    const normEmail = email.toLowerCase().trim();
+    if (!normEmail.endsWith(`@${EMAIL_DOMAIN}`)) {
+      throw new Error(`Invites must use @${EMAIL_DOMAIN} addresses`);
+    }
+
     console.log(`Creating invitation for ${email}`);
 
     // Check if invitation already exists

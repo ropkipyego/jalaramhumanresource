@@ -51,6 +51,13 @@ import Assets from "@/pages/Assets";
 import Announcements from "@/pages/Announcements";
 import ReportsHub from "@/pages/ReportsHub";
 import Disciplinary from "@/pages/Disciplinary";
+import GoLiveCredentials from "@/pages/GoLiveCredentials";
+import ChangePassword from "@/pages/ChangePassword";
+import EmailSecuritySetup from "@/pages/EmailSecuritySetup";
+import MfaSetup from "@/pages/MfaSetup";
+import MfaVerify from "@/pages/MfaVerify";
+import OvertimeApprovals from "@/pages/OvertimeApprovals";
+import GoLiveChecklist from "@/pages/GoLiveChecklist";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -65,6 +72,9 @@ const App = () => (
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/onboarding" element={<Onboarding />} />
+            <Route path="/change-password" element={<ChangePassword />} />
+            <Route path="/mfa-setup" element={<MfaSetup />} />
+            <Route path="/mfa-verify" element={<MfaVerify />} />
             <Route path="/" element={<AppLayout />}>
               <Route index element={<Navigate to="/dashboard" replace />} />
               <Route path="dashboard" element={<Dashboard />} />
@@ -103,6 +113,7 @@ const App = () => (
               <Route path="attendance/import" element={<AttendanceImport />} />
               <Route path="attendance/records" element={<AttendanceRecords />} />
               <Route path="attendance/exceptions" element={<AttendanceExceptions />} />
+              <Route path="attendance/overtime" element={<OvertimeApprovals />} />
               <Route path="attendance/my" element={<MyAttendance />} />
               <Route path="recruitment" element={<Recruitment />} />
               <Route path="performance" element={<Performance />} />
@@ -111,6 +122,9 @@ const App = () => (
               <Route path="announcements" element={<Announcements />} />
               <Route path="reports" element={<ReportsHub />} />
               <Route path="disciplinary" element={<Disciplinary />} />
+              <Route path="go-live-credentials" element={<GoLiveCredentials />} />
+              <Route path="go-live" element={<GoLiveChecklist />} />
+              <Route path="email-security" element={<EmailSecuritySetup />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

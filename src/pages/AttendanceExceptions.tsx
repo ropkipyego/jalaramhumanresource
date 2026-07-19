@@ -11,6 +11,8 @@ import { AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
 
 interface ExceptionRow {
   id: string;
+  daily_id: string | null;
+  employee_id: string;
   work_date: string;
   exception_type: string;
   severity: string;
@@ -43,12 +45,24 @@ export default function AttendanceExceptions() {
 
   useEffect(() => { load(); }, [showResolved]);
 
-  const resolve = async (id: string) => {
+  const resolve = async (row: ExceptionRow) => {
     const { error } = await supabase.from("attendance_exceptions").update({
       resolved: true, resolved_at: new Date().toISOString(),
-    }).eq("id", id);
-    if (error) toast.error(error.message);
-    else { toast.success("Resolved"); load(); }
+    }).eq("id", row.id);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    // Approving OT exceptions also approves the daily attendance row
+    if (row.exception_type === "OT_PENDING" && row.daily_id) {
+      await (supabase as any).rpc("bulk_set_attendance_approval", {
+        _ids: [row.daily_id],
+        _status: "APPROVED",
+        _zero_ot_on_reject: true,
+      });
+    }
+    toast.success(row.exception_type === "OT_PENDING" ? "Resolved & OT approved" : "Resolved");
+    load();
   };
 
   const sevColor = (s: string) => s === "blocker" ? "destructive" : s === "warning" ? "secondary" : "outline";
@@ -107,7 +121,9 @@ export default function AttendanceExceptions() {
                     {canManage && (
                       <TableCell className="text-right">
                         {!r.resolved && (
-                          <Button size="sm" variant="ghost" onClick={() => resolve(r.id)}>Resolve</Button>
+                          <Button size="sm" variant="ghost" onClick={() => resolve(r)}>
+                            {r.exception_type === "OT_PENDING" ? "Resolve & Approve OT" : "Resolve"}
+                          </Button>
                         )}
                       </TableCell>
                     )}

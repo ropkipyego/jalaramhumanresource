@@ -42,6 +42,7 @@ const pageTitles: Record<string, string> = {
   '/attendance/import': 'Biometric Import',
   '/attendance/records': 'Daily Records',
   '/attendance/exceptions': 'Exceptions',
+  '/attendance/overtime': 'OT Approvals',
   '/attendance/my': 'My Attendance',
   '/attendance/shift-templates': 'Shift Templates',
   '/attendance/holidays': 'Holiday Calendar',
@@ -53,6 +54,9 @@ const pageTitles: Record<string, string> = {
   '/announcements': 'Announcements',
   '/reports': 'Reports',
   '/disciplinary': 'Disciplinary Records',
+  '/go-live-credentials': 'Go-Live Credentials',
+  '/go-live': 'Go-Live Checklist',
+  '/email-security': 'Email & Security',
 };
 
 export function AppHeader() {

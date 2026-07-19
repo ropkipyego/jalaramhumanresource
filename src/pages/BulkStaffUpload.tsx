@@ -68,8 +68,8 @@ const BulkStaffUpload = () => {
 
   const downloadTemplate = () => {
     const sample = [
-      { "Staff ID": "EMP-001", "Full Name": "Jane Doe", Email: "jane@hospital.com", Role: "STAFF", Department: departments[0]?.name || "" },
-      { "Staff ID": "EMP-002", "Full Name": "John Smith", Email: "john@hospital.com", Role: "HEAD", Department: departments[0]?.name || "" },
+      { "Staff ID": "EMP-001", "Full Name": "Jane Doe", Email: "jane.doe@jalaram.co.ke", Role: "STAFF", Department: departments[0]?.name || "" },
+      { "Staff ID": "EMP-002", "Full Name": "John Smith", Email: "john.smith@jalaram.co.ke", Role: "HEAD", Department: departments[0]?.name || "" },
     ];
     const ws = XLSX.utils.json_to_sheet(sample);
     ws["!cols"] = [{ wch: 14 }, { wch: 24 }, { wch: 28 }, { wch: 10 }, { wch: 24 }];
@@ -160,7 +160,12 @@ const BulkStaffUpload = () => {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><FileSpreadsheet className="h-5 w-5" />Step 1 — Download Template</CardTitle>
-          <CardDescription>Columns: Staff ID, Full Name, Email, Role (STAFF / HEAD / ADMIN), Department. Password optional — auto-generated if blank. Email optional — if blank a login like <code>staffid@jalaramhr.local</code> is created. Unknown departments are auto-created.</CardDescription>
+          <CardDescription>
+            Columns: Staff ID, Full Name, Email, Role (STAFF / HEAD / ADMIN), Department.
+            Password optional — auto-generated if blank.
+            Email optional — if blank a login like <code>staffid@jalaram.co.ke</code> is created.
+            All emails must be <code>@jalaram.co.ke</code>. Unknown departments are auto-created.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Button onClick={downloadTemplate} variant="outline"><Download className="h-4 w-4 mr-2" />Download Template</Button>

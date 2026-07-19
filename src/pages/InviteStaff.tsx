@@ -11,11 +11,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, Mail, User, Building2, Shield, Lock, UserPlus, RefreshCw } from "lucide-react";
 import { z } from "zod";
 import type { Database } from "@/integrations/supabase/types";
+import { STAFF_EMAIL_DOMAIN, normalizeStaffEmail } from "@/lib/staffEmail";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
 
 const createSchema = z.object({
-  email: z.string().email("Invalid email address"),
+  email: z.string().email("Invalid email address").refine(
+    (e) => e.toLowerCase().endsWith(`@${STAFF_EMAIL_DOMAIN}`),
+    `Email must end with @${STAFF_EMAIL_DOMAIN}`
+  ),
   fullName: z.string().min(2, "Name must be at least 2 characters"),
   password: z.string().min(8, "Password must be at least 8 characters"),
   staffId: z.string().trim().min(1, "Staff ID is required").max(50),
@@ -77,8 +81,14 @@ const InviteStaff = () => {
     e.preventDefault();
     setErrors({});
 
+    const emailCheck = normalizeStaffEmail(email);
+    if (emailCheck.error) {
+      setErrors({ email: emailCheck.error });
+      return;
+    }
+
     const payload = {
-      email,
+      email: emailCheck.email,
       fullName,
       password,
       staffId,
@@ -154,7 +164,8 @@ const InviteStaff = () => {
               <div className="space-y-2">
                 <Label htmlFor="email" className="flex items-center gap-2"><Mail className="h-4 w-4" />Email *</Label>
                 <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-                  placeholder="staff@hospital.com" className={errors.email ? "border-destructive" : ""} />
+                  placeholder={`name@${STAFF_EMAIL_DOMAIN}`} className={errors.email ? "border-destructive" : ""} />
+                <p className="text-xs text-muted-foreground">Must be a @{STAFF_EMAIL_DOMAIN} address</p>
                 {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
               </div>
               <div className="space-y-2">
