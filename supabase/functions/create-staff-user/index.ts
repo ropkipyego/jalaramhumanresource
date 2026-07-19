@@ -83,6 +83,7 @@ const body: CreateUserRequest = await req.json();
       full_name: fullName || null,
       staff_id: staffId || null,
       phone: phone || null,
+      must_change_password: true,
     });
     if (profileErr) console.error("Profile upsert error:", profileErr);
 

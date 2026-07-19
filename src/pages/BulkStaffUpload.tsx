@@ -12,6 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, FileSpreadsheet, Download, Upload, CheckCircle2, AlertCircle, SkipForward } from "lucide-react";
 import * as XLSX from "xlsx";
 
+import { DEFAULT_TEMP_PASSWORD } from "@/lib/tempPassword";
+
 interface ParsedRow {
   staffId: string;
   fullName: string;
@@ -29,13 +31,6 @@ interface ResultRow {
   reason?: string;
   password?: string;
 }
-
-const randomPassword = () => {
-  const chars = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
-  let p = "";
-  for (let i = 0; i < 10; i++) p += chars[Math.floor(Math.random() * chars.length)];
-  return p + "!";
-};
 
 const BulkStaffUpload = () => {
   const navigate = useNavigate();
@@ -108,7 +103,7 @@ const BulkStaffUpload = () => {
           email: get(["Email", "email"]),
           role: (get(["Role", "role"]) || "STAFF").toUpperCase(),
           departmentName: get(["Department", "department", "Dept"]),
-          password: get(["Password"]) || randomPassword(),
+          password: get(["Password"]) || DEFAULT_TEMP_PASSWORD,
         };
       }).filter((r) => r.staffId || r.email || r.fullName);
       setParsedRows(mapped);
@@ -162,7 +157,7 @@ const BulkStaffUpload = () => {
           <CardTitle className="flex items-center gap-2"><FileSpreadsheet className="h-5 w-5" />Step 1 — Download Template</CardTitle>
           <CardDescription>
             Columns: Staff ID, Full Name, Email, Role (STAFF / HEAD / ADMIN), Department.
-            Password optional — auto-generated if blank.
+            Password optional — defaults to <code>ChangeMe123!</code> (forced change on first login).
             Email optional — if blank a login like <code>staffid@jalaram.co.ke</code> is created.
             All emails must be <code>@jalaram.co.ke</code>. Unknown departments are auto-created.
           </CardDescription>

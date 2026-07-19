@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ClipboardList, Loader2, Mail, Lock } from 'lucide-react';
+import { PasswordInput } from '@/components/ui/password-input';
+import { ClipboardList, Loader2, Mail, Lock, KeyRound } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
 import { STAFF_EMAIL_DOMAIN } from '@/lib/staffEmail';
@@ -20,8 +22,10 @@ export default function Auth() {
   const { user, signIn } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [mode, setMode] = useState<'login' | 'forgot'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [resetSent, setResetSent] = useState(false);
 
   useEffect(() => {
     if (user) navigate('/dashboard', { replace: true });
@@ -45,12 +49,20 @@ export default function Auth() {
         });
         return;
       }
-      const { error } = await signIn(email, password);
+      if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY) {
+        toast({
+          title: 'App not connected to Supabase',
+          description: 'Missing VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY on this deploy (set them in Vercel → Environment Variables).',
+          variant: 'destructive',
+        });
+        return;
+      }
+      const { error } = await signIn(normalized, password);
       if (error) {
         toast({
           title: 'Login Failed',
           description: error.message === 'Invalid login credentials'
-            ? 'Invalid email or password. Please try again.'
+            ? 'Invalid email or password. First login uses ChangeMe123! if HR reset your account.'
             : error.message,
           variant: 'destructive',
         });
@@ -58,6 +70,29 @@ export default function Auth() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleForgot = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const normalized = email.trim().toLowerCase();
+    if (!normalized.includes('@')) {
+      toast({ title: 'Enter your email', variant: 'destructive' });
+      return;
+    }
+    setIsLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(normalized, {
+      redirectTo: `${window.location.origin}/change-password`,
+    });
+    setIsLoading(false);
+    if (error) {
+      toast({ title: 'Could not send reset email', description: error.message, variant: 'destructive' });
+      return;
+    }
+    setResetSent(true);
+    toast({
+      title: 'Check your email',
+      description: 'If that address has an account, a reset link was sent. SMTP must be configured in Supabase Auth.',
+    });
   };
 
   return (
@@ -70,49 +105,98 @@ export default function Auth() {
           <div>
             <CardTitle className="text-2xl font-bold">Jalaram Hospital HR</CardTitle>
             <CardDescription className="mt-1">
-              Sign in with your @{STAFF_EMAIL_DOMAIN} account
+              {mode === 'login'
+                ? `Sign in with your @${STAFF_EMAIL_DOMAIN} account`
+                : 'Reset your password'}
             </CardDescription>
           </div>
         </CardHeader>
 
         <CardContent className="space-y-6">
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="login-email">Email</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="login-email"
-                  type="email"
-                  placeholder={`you@${STAFF_EMAIL_DOMAIN}`}
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="pl-10"
-                  required
-                />
+          {mode === 'login' ? (
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="login-email">Email</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="login-email"
+                    type="email"
+                    autoComplete="username"
+                    placeholder={`you@${STAFF_EMAIL_DOMAIN}`}
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="pl-10"
+                    required
+                  />
+                </div>
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="login-password">Password</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="login-password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10"
-                  required
-                />
+              <div className="space-y-2">
+                <Label htmlFor="login-password">Password</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground z-10" />
+                  <PasswordInput
+                    id="login-password"
+                    autoComplete="current-password"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="pl-10"
+                    required
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  First login after HR reset: <code className="font-mono">ChangeMe123!</code> — you will be asked to set a new password.
+                </p>
               </div>
-            </div>
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Signing in...</>) : 'Sign In'}
-            </Button>
-          </form>
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Signing in...</>) : 'Sign In'}
+              </Button>
+              <button
+                type="button"
+                className="w-full text-sm text-primary hover:underline"
+                onClick={() => { setMode('forgot'); setResetSent(false); }}
+              >
+                Forgot password?
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleForgot} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="reset-email">Email</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="reset-email"
+                    type="email"
+                    placeholder={`you@${STAFF_EMAIL_DOMAIN}`}
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="pl-10"
+                    required
+                  />
+                </div>
+              </div>
+              {resetSent && (
+                <p className="text-sm text-muted-foreground flex items-start gap-2">
+                  <KeyRound className="h-4 w-4 mt-0.5 shrink-0" />
+                  Reset link sent (if the account exists). Also ask HR to set password to ChangeMe123! from Go-Live Credentials.
+                </p>
+              )}
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Sending...</>) : 'Send reset link'}
+              </Button>
+              <button
+                type="button"
+                className="w-full text-sm text-muted-foreground hover:underline"
+                onClick={() => setMode('login')}
+              >
+                Back to sign in
+              </button>
+            </form>
+          )}
           <p className="text-center text-xs text-muted-foreground">
-            Accounts are created by HR (invite or bulk upload). Self-registration is disabled.
+            Accounts are created by HR only. Self-registration is disabled.
           </p>
         </CardContent>
       </Card>

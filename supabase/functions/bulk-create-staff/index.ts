@@ -17,6 +17,7 @@ interface Row {
 
 const VALID_ROLES = new Set(["STAFF", "HEAD", "ADMIN"]);
 const EMAIL_DOMAIN = "jalaram.co.ke";
+const DEFAULT_TEMP_PASSWORD = "ChangeMe123!";
 
 const slugifyStaffId = (s: string) =>
   s.toLowerCase().replace(/[^a-z0-9]+/g, ".").replace(/^\.+|\.+$/g, "");
@@ -80,7 +81,7 @@ serve(async (req) => {
       const staffId = (r.staffId || "").toString().trim().replace(/\s+/g, "");
       let email = (r.email || "").toString().toLowerCase().trim();
       const fullName = (r.fullName || "").toString().trim();
-      const password = (r.password || "").toString();
+      const password = ((r.password || "").toString().trim() || DEFAULT_TEMP_PASSWORD);
       const role = (r.role || "STAFF").toString().toUpperCase().trim();
       const deptNameRaw = (r.departmentName || "").toString().trim();
       const deptKey = deptNameRaw.toLowerCase();
@@ -138,6 +139,7 @@ serve(async (req) => {
 
         await supabase.from("profiles").upsert({
           id: newUserId, email, full_name: fullName, staff_id: staffId,
+          must_change_password: true,
         });
         await supabase.from("user_roles").insert({ user_id: newUserId, role });
         if (departmentId) {

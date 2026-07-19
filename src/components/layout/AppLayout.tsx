@@ -7,23 +7,20 @@ import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { Loader2 } from 'lucide-react';
 import { resolveMfaGate, type MfaGateState } from '@/lib/mfa';
 
-const MFA_PATHS = new Set(['/mfa-setup', '/mfa-verify', '/change-password']);
-
 export function AppLayout() {
   const { user, profile, role, loading } = useAuth();
   const location = useLocation();
   const [mfa, setMfa] = useState<MfaGateState>({ status: 'loading' });
 
+  // Force password change takes priority over everything else
+  const mustChange = !!(profile as any)?.must_change_password;
+
   useEffect(() => {
-    if (loading || !user) {
-      setMfa({ status: 'loading' });
+    if (loading || !user || mustChange) {
+      setMfa({ status: 'ok' });
       return;
     }
-    if (!role) {
-      // Role still loading — wait
-      setMfa({ status: 'loading' });
-      return;
-    }
+    // Role may be null briefly or permanently (missing user_roles) — never block forever
     let cancelled = false;
     setMfa({ status: 'loading' });
     resolveMfaGate(role).then((state) => {
@@ -32,9 +29,9 @@ export function AppLayout() {
     return () => {
       cancelled = true;
     };
-  }, [user, role, loading, location.pathname]);
+  }, [user, role, loading, mustChange, location.pathname]);
 
-  if (loading || (user && (mfa.status === 'loading' || !role) && !MFA_PATHS.has(location.pathname))) {
+  if (loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
@@ -49,15 +46,23 @@ export function AppLayout() {
     return <Navigate to="/auth" replace />;
   }
 
-  if ((profile as any)?.must_change_password && location.pathname !== '/change-password') {
+  if (mustChange) {
     return <Navigate to="/change-password" replace />;
   }
 
-  if (mfa.status === 'needs_enroll' && location.pathname !== '/mfa-setup') {
-    return <Navigate to="/mfa-setup" replace />;
+  if (mfa.status === 'loading') {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
   }
+
   if (mfa.status === 'needs_verify' && location.pathname !== '/mfa-verify') {
     return <Navigate to="/mfa-verify" replace />;
+  }
+  if (mfa.status === 'needs_enroll' && location.pathname !== '/mfa-setup') {
+    return <Navigate to="/mfa-setup" replace />;
   }
 
   return (

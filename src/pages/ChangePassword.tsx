@@ -3,12 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { PasswordInput } from "@/components/ui/password-input";
 import { toast } from "sonner";
 import { KeyRound, Loader2, ShieldAlert } from "lucide-react";
+import { DEFAULT_TEMP_PASSWORD, isTempPassword } from "@/lib/tempPassword";
 
 export default function ChangePassword() {
   const { user, loading, refreshProfile } = useAuth() as any;
@@ -29,6 +30,10 @@ export default function ChangePassword() {
     }
     if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password)) {
       toast.error("Use upper, lower, and a number");
+      return;
+    }
+    if (isTempPassword(password)) {
+      toast.error(`Choose a password other than ${DEFAULT_TEMP_PASSWORD}`);
       return;
     }
     if (password !== confirm) {
@@ -76,17 +81,27 @@ export default function ChangePassword() {
             <ShieldAlert className="h-4 w-4" />
             <AlertTitle>Password rules</AlertTitle>
             <AlertDescription>
-              At least 8 characters, with uppercase, lowercase, and a number.
+              At least 8 characters, with uppercase, lowercase, and a number. Do not reuse {DEFAULT_TEMP_PASSWORD}.
             </AlertDescription>
           </Alert>
           <form onSubmit={save} className="space-y-4">
             <div>
               <Label>New password</Label>
-              <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+              <PasswordInput
+                autoComplete="new-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
             </div>
             <div>
               <Label>Confirm password</Label>
-              <Input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required />
+              <PasswordInput
+                autoComplete="new-password"
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                required
+              />
             </div>
             <Button type="submit" className="w-full" disabled={busy}>
               {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}

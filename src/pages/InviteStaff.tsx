@@ -12,6 +12,8 @@ import { Loader2, Mail, User, Building2, Shield, Lock, UserPlus, RefreshCw } fro
 import { z } from "zod";
 import type { Database } from "@/integrations/supabase/types";
 import { STAFF_EMAIL_DOMAIN, normalizeStaffEmail } from "@/lib/staffEmail";
+import { DEFAULT_TEMP_PASSWORD } from "@/lib/tempPassword";
+import { PasswordInput } from "@/components/ui/password-input";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
 
@@ -33,12 +35,7 @@ interface Department {
   code: string;
 }
 
-const randomPassword = () => {
-  const chars = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
-  let p = "";
-  for (let i = 0; i < 10; i++) p += chars[Math.floor(Math.random() * chars.length)];
-  return p + "!";
-};
+const randomPassword = () => DEFAULT_TEMP_PASSWORD;
 
 const InviteStaff = () => {
   const navigate = useNavigate();
@@ -52,7 +49,7 @@ const InviteStaff = () => {
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
   const [staffId, setStaffId] = useState("");
-  const [password, setPassword] = useState(randomPassword());
+  const [password, setPassword] = useState(DEFAULT_TEMP_PASSWORD);
   const [selectedRole, setSelectedRole] = useState<"STAFF" | "HEAD" | "ADMIN">("STAFF");
   const [departmentId, setDepartmentId] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -187,12 +184,13 @@ const InviteStaff = () => {
               <div className="space-y-2">
                 <Label htmlFor="password" className="flex items-center gap-2"><Lock className="h-4 w-4" />Initial Password *</Label>
                 <div className="flex gap-2">
-                  <Input id="password" type="text" value={password} onChange={(e) => setPassword(e.target.value)}
-                    placeholder="At least 8 characters" className={errors.password ? "border-destructive" : ""} />
-                  <Button type="button" variant="outline" size="icon" onClick={() => setPassword(randomPassword())} title="Regenerate">
+                  <PasswordInput id="password" value={password} onChange={(e) => setPassword(e.target.value)}
+                    placeholder={DEFAULT_TEMP_PASSWORD} className={errors.password ? "border-destructive" : ""} />
+                  <Button type="button" variant="outline" size="icon" onClick={() => setPassword(DEFAULT_TEMP_PASSWORD)} title="Use ChangeMe123!">
                     <RefreshCw className="h-4 w-4" />
                   </Button>
                 </div>
+                <p className="text-xs text-muted-foreground">Default: {DEFAULT_TEMP_PASSWORD} — staff must change it on first login.</p>
                 {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
                 <p className="text-xs text-muted-foreground">They can change it after first login.</p>
               </div>

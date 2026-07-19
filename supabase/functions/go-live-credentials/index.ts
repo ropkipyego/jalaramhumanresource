@@ -1,16 +1,11 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+const DEFAULT_TEMP_PASSWORD = "ChangeMe123!";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
-const randomPassword = () => {
-  const chars = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
-  let p = "";
-  for (let i = 0; i < 10; i++) p += chars[Math.floor(Math.random() * chars.length)];
-  return p + "!";
 };
 
 serve(async (req) => {
@@ -123,7 +118,9 @@ serve(async (req) => {
           continue;
         }
 
-        const password = randomPassword();
+        const password = (typeof body.password === "string" && body.password.length >= 8)
+          ? body.password
+          : DEFAULT_TEMP_PASSWORD;
         const { error: upErr } = await supabase.auth.admin.updateUserById(id, {
           password,
           email_confirm: true,

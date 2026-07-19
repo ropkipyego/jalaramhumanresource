@@ -51,6 +51,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (roleData) {
         setRole(roleData.role as AppRole);
+      } else {
+        // Never leave role null forever — AppLayout used to hang on login
+        setRole('STAFF');
       }
 
       // Fetch departments

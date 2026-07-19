@@ -178,7 +178,8 @@ export default function GoLiveCredentials() {
       <div>
         <h1 className="text-3xl font-bold">Go-Live Credentials</h1>
         <p className="text-muted-foreground">
-          List every staff login email, then generate temporary passwords for distribution.
+          Reset every login to the shared temporary password <code className="font-mono">ChangeMe123!</code>.
+          Staff are forced to change it on first sign-in.
         </p>
       </div>
 
@@ -188,14 +189,15 @@ export default function GoLiveCredentials() {
         <AlertDescription className="space-y-2 text-sm">
           <p>
             <strong>Passwords cannot be recovered</strong> from the database (they are hashed).
-            Use this page to list every login email, then reset temporary passwords and download the Excel once.
+            Use this page to list every login email, then reset passwords to <code className="font-mono">ChangeMe123!</code> and download the Excel once.
           </p>
           <ol className="list-decimal pl-5 space-y-1">
             <li>Deploy: <code className="text-xs">supabase functions deploy go-live-credentials</code></li>
+            <li>Run DB migration for <code className="text-xs">must_change_password</code> in Supabase (not Vercel)</li>
             <li>Click <strong>Refresh roster</strong> to load all staff emails</li>
             <li>Click <strong>Reset ALL active logins</strong> (or select people)</li>
-            <li>Save the downloaded Excel — that is your only password list</li>
-            <li>Share each password privately with that staff member</li>
+            <li>Everyone gets <code className="font-mono">ChangeMe123!</code> and must change it after login</li>
+            <li>Share each email privately with that staff member</li>
           </ol>
           <p>
             Alternative (CLI): set <code className="text-xs">SUPABASE_SERVICE_ROLE_KEY</code> then run{" "}
