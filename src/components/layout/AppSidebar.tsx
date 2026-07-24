@@ -11,7 +11,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import {
   Calendar, CalendarDays, ClipboardList, Users, Settings, Shield, LogOut,
   Home, UserPlus, FileSpreadsheet, Building2, Calculator,
-  Landmark, ShieldCheck, User, Clock, CalendarCheck, SlidersHorizontal,
+  Landmark, ShieldCheck, User, UserCircle, Clock, CalendarCheck, SlidersHorizontal,
   Briefcase, Layers, AlertTriangle, FileText, Megaphone, BarChart3,
   KeyRound, FolderOpen, Timer, ChevronDown,
 } from 'lucide-react';

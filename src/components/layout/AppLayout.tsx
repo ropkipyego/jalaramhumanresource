@@ -15,9 +15,10 @@ export function AppLayout() {
   const [mfa, setMfa] = useState<MfaGateState>({ status: 'loading' });
 
   const mustChange = !!(profile as any)?.must_change_password;
+  // Only treat explicit false / TERMINATED as closed — null/undefined is_active must not block login
   const inactive =
     !!profile &&
-    ((profile as any).is_active === false || String((profile as any).hr_status || '') === 'TERMINATED');
+    ((profile as any).is_active === false || String((profile as any).hr_status || "") === "TERMINATED");
 
   useEffect(() => {
     if (loading || !user || mustChange || inactive) {

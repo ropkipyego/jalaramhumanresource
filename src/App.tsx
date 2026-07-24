@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { AppErrorBoundary } from "@/components/AppErrorBoundary";
 import { Loader2 } from "lucide-react";
 
 /** Eager: login / password gate only */
@@ -88,8 +89,9 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <Suspense fallback={<PageFallback />}>
-            <Routes>
+          <AppErrorBoundary>
+            <Suspense fallback={<PageFallback />}>
+              <Routes>
               <Route path="/auth" element={<Auth />} />
               <Route path="/onboarding" element={<Onboarding />} />
               <Route path="/change-password" element={<ChangePassword />} />
@@ -149,7 +151,8 @@ const App = () => (
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
-          </Suspense>
+            </Suspense>
+          </AppErrorBoundary>
         </BrowserRouter>
       </TooltipProvider>
     </AuthProvider>

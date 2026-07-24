@@ -32,14 +32,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const fetchUserData = async (userId: string) => {
     try {
       // Fetch profile
-      const { data: profileData } = await supabase
+      const { data: profileData, error: profileErr } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .maybeSingle();
 
+      if (profileErr) {
+        console.error('Profile load error:', profileErr.message);
+      }
       if (profileData) {
         setProfile(profileData as Profile);
+      } else {
+        // Avoid hanging gates when profile row is missing
+        setProfile(null);
       }
 
       // Fetch role
@@ -73,9 +79,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             .filter((d) => d.is_head)
             .map((d) => d.department_id)
         );
+      } else {
+        setDepartments([]);
+        setHeadDepartments([]);
       }
     } catch (error) {
       console.error('Error fetching user data:', error);
+      setRole((r) => r ?? 'STAFF');
     }
   };
 
