@@ -26,6 +26,7 @@ const pageTitles: Record<string, string> = {
   '/leave-encashment': 'Leave Encashment',
   '/staff': 'Staff Directory',
   '/staff/compliance': 'Staff Compliance',
+  '/staff/accounts': 'User Accounts',
   '/compliance': 'Compliance Dashboard',
   '/invite': 'Invite Staff',
   '/invite/bulk': 'Bulk Upload Staff',

@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
-import { FolderOpen, Info, Loader2 } from 'lucide-react';
+import { FolderOpen, Info, KeyRound, Loader2 } from 'lucide-react';
 import { phasePercent, profileCompleteness } from '@/lib/profileCompleteness';
 import { ProfileDocUpload } from '@/components/profile/ProfileDocUpload';
 
@@ -106,12 +106,17 @@ export default function MyProfile() {
   const bankPct = phasePercent(merged, 'Bank');
 
   return (
-    <div className="space-y-6 p-6 max-w-3xl">
-      <div>
-        <h1 className="text-3xl font-bold">My Profile</h1>
-        <p className="text-muted-foreground">
-          Complete your details in steps. Salary is filled by HR only.
-        </p>
+    <div className="space-y-6 p-6 max-w-3xl animate-fade-in">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-3xl font-bold">My Profile</h1>
+          <p className="text-muted-foreground">
+            Complete your details in steps. Salary is filled by HR only.
+          </p>
+        </div>
+        <Button asChild variant="outline" size="sm">
+          <Link to="/change-password"><KeyRound className="h-4 w-4 mr-2" />Change password</Link>
+        </Button>
       </div>
 
       <Card>

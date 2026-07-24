@@ -31,6 +31,7 @@ const Payroll = lazy(() => import("@/pages/Payroll"));
 const PayrollPeriod = lazy(() => import("@/pages/PayrollPeriod"));
 const StatutorySettings = lazy(() => import("@/pages/StatutorySettings"));
 const StaffCompliance = lazy(() => import("@/pages/StaffCompliance"));
+const UserAccounts = lazy(() => import("@/pages/UserAccounts"));
 const MyProfile = lazy(() => import("@/pages/MyProfile"));
 const AttendanceDashboard = lazy(() => import("@/pages/AttendanceDashboard"));
 const ShiftTemplates = lazy(() => import("@/pages/ShiftTemplates"));
@@ -108,6 +109,7 @@ const App = () => (
                 <Route path="on-call" element={<OnCallSchedule />} />
                 <Route path="staff" element={<StaffDirectory />} />
                 <Route path="staff/compliance" element={<StaffCompliance />} />
+                <Route path="staff/accounts" element={<UserAccounts />} />
                 <Route path="staff/:id" element={<EmployeeDetail />} />
                 <Route path="compliance" element={<ComplianceDashboard />} />
                 <Route path="leave-admin" element={<LeaveAdmin />} />

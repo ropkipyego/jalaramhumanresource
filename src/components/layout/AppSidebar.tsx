@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRole } from '@/hooks/useRole';
@@ -10,15 +10,15 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   Calendar, CalendarDays, ClipboardList, Users, Settings, Shield, LogOut,
-  Home, UserCircle, UserPlus, FileSpreadsheet, Building2, Calculator,
+  Home, UserPlus, FileSpreadsheet, Building2, Calculator,
   Landmark, ShieldCheck, User, Clock, CalendarCheck, SlidersHorizontal,
-  Briefcase, Layers, AlertTriangle, FileText, RefreshCw, Phone,
-  Banknote, Megaphone, BarChart3, GraduationCap, Package, UserSearch,
-  Target, KeyRound, Gavel, FolderOpen, Timer, Rocket, ChevronDown,
-  Hospital,
+  Briefcase, Layers, AlertTriangle, FileText, Megaphone, BarChart3,
+  KeyRound, FolderOpen, Timer, ChevronDown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { BrandLogo } from '@/components/BrandLogo';
+import { supabase } from '@/integrations/supabase/client';
 
 interface NavItem {
   title: string;
@@ -46,8 +46,6 @@ const rotaNav: NavItem[] = [
   { title: 'My Rota', url: '/my-rota', icon: Calendar },
   { title: 'Department Rota', url: '/rota', icon: ClipboardList, roles: ['HEAD', 'ADMIN', 'SUPER_ADMIN'] },
   { title: 'Upload Rota', url: '/rota-upload', icon: FileSpreadsheet, roles: ['HEAD', 'ADMIN', 'SUPER_ADMIN'] },
-  { title: 'Shift Swaps', url: '/shift-swaps', icon: RefreshCw },
-  { title: 'On-Call', url: '/on-call', icon: Phone, roles: ['HEAD', 'ADMIN', 'SUPER_ADMIN'] },
   { title: 'Department Rules', url: '/rules', icon: Settings, roles: ['HEAD', 'ADMIN', 'SUPER_ADMIN'] },
 ];
 
@@ -60,24 +58,17 @@ const attendanceNav: NavItem[] = [
   { title: 'OT Approvals', url: '/attendance/overtime', icon: Timer, roles: ['HEAD', 'ADMIN', 'SUPER_ADMIN'] },
   { title: 'Shift Templates', url: '/attendance/shift-templates', icon: SlidersHorizontal, roles: ['HEAD', 'ADMIN', 'SUPER_ADMIN'] },
   { title: 'Holidays', url: '/attendance/holidays', icon: CalendarCheck, roles: ['HEAD', 'ADMIN', 'SUPER_ADMIN'] },
-  { title: 'Attendance Settings', url: '/attendance/settings', icon: Settings, roles: ['SUPER_ADMIN'] },
 ];
 
 const hrNav: NavItem[] = [
   { title: 'Staff Directory', url: '/staff', icon: Users, roles: ['HEAD', 'ADMIN', 'SUPER_ADMIN'] },
+  { title: 'User Accounts', url: '/staff/accounts', icon: KeyRound, roles: ['ADMIN', 'SUPER_ADMIN'] },
   { title: 'Invite Staff', url: '/invite', icon: UserPlus, roles: ['ADMIN', 'SUPER_ADMIN'] },
   { title: 'Bulk Upload Staff', url: '/invite/bulk', icon: FileSpreadsheet, roles: ['ADMIN', 'SUPER_ADMIN'] },
-  { title: 'Compliance', url: '/compliance', icon: ShieldCheck, roles: ['ADMIN', 'SUPER_ADMIN', 'FINANCE_ADMIN'] },
-  { title: 'Staff Compliance Data', url: '/staff/compliance', icon: ShieldCheck, roles: ['ADMIN', 'SUPER_ADMIN', 'FINANCE_ADMIN'] },
+  { title: 'Staff Compliance', url: '/staff/compliance', icon: ShieldCheck, roles: ['ADMIN', 'SUPER_ADMIN', 'FINANCE_ADMIN'] },
   { title: 'My Leave', url: '/my-leave', icon: CalendarDays },
   { title: 'Leave Admin', url: '/leave-admin', icon: CalendarDays, roles: ['HEAD', 'ADMIN', 'SUPER_ADMIN'] },
   { title: 'Leave Calendar', url: '/leave-calendar', icon: CalendarCheck, roles: ['HEAD', 'ADMIN', 'SUPER_ADMIN'] },
-  { title: 'Leave Encashment', url: '/leave-encashment', icon: Banknote, roles: ['ADMIN', 'SUPER_ADMIN', 'FINANCE_ADMIN'] },
-  { title: 'Recruitment', url: '/recruitment', icon: UserSearch, roles: ['ADMIN', 'SUPER_ADMIN'] },
-  { title: 'Performance', url: '/performance', icon: Target, roles: ['HEAD', 'ADMIN', 'SUPER_ADMIN'] },
-  { title: 'Training & CPD', url: '/training', icon: GraduationCap, roles: ['HEAD', 'ADMIN', 'SUPER_ADMIN'] },
-  { title: 'Disciplinary', url: '/disciplinary', icon: Gavel, roles: ['ADMIN', 'SUPER_ADMIN'] },
-  { title: 'Assets', url: '/assets', icon: Package, roles: ['ADMIN', 'SUPER_ADMIN'] },
   { title: 'Departments', url: '/departments', icon: Building2, roles: ['SUPER_ADMIN'] },
   { title: 'Positions', url: '/positions', icon: Briefcase, roles: ['SUPER_ADMIN'] },
   { title: 'Job Grades', url: '/grades', icon: Layers, roles: ['SUPER_ADMIN'] },
@@ -86,16 +77,13 @@ const hrNav: NavItem[] = [
 const payrollNav: NavItem[] = [
   { title: 'My Payslips', url: '/my-payslips', icon: FileText },
   { title: 'Payroll Periods', url: '/payroll', icon: Calculator, roles: ['ADMIN', 'SUPER_ADMIN', 'FINANCE_ADMIN'] },
-  { title: 'Loans & Advances', url: '/loans', icon: Banknote, roles: ['ADMIN', 'SUPER_ADMIN', 'FINANCE_ADMIN'] },
   { title: 'Statutory Rates', url: '/payroll/settings', icon: Landmark, roles: ['SUPER_ADMIN'] },
   { title: 'Reports & Exports', url: '/reports', icon: BarChart3, roles: ['ADMIN', 'SUPER_ADMIN', 'FINANCE_ADMIN'] },
 ];
 
 const systemNav: NavItem[] = [
   { title: 'Organization', url: '/organization', icon: Building2, roles: ['SUPER_ADMIN'] },
-  { title: 'Go-Live Checklist', url: '/go-live', icon: Rocket, roles: ['ADMIN', 'SUPER_ADMIN', 'FINANCE_ADMIN'] },
   { title: 'Go-Live Credentials', url: '/go-live-credentials', icon: KeyRound, roles: ['ADMIN', 'SUPER_ADMIN'] },
-  { title: 'Email & Security', url: '/email-security', icon: Settings, roles: ['SUPER_ADMIN'] },
   { title: 'Audit Logs', url: '/audit-logs', icon: Shield, roles: ['ADMIN', 'SUPER_ADMIN'] },
 ];
 
@@ -120,6 +108,18 @@ export function AppSidebar() {
   const { signOut, profile } = useAuth();
   const { role } = useRole();
   const location = useLocation();
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from('organization_settings')
+        .select('logo_url')
+        .limit(1)
+        .maybeSingle();
+      if (data?.logo_url) setLogoUrl(data.logo_url);
+    })();
+  }, []);
 
   const filterByRole = (items: NavItem[]) =>
     items.filter((i) => !i.roles || (!!role && i.roles.includes(role)));
@@ -157,8 +157,8 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader className="border-b border-sidebar-border p-4">
         <div className="flex items-center gap-3">
-          <div className="relative flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
-            <Hospital className="h-5 w-5" />
+          <div className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg bg-white shadow-sm ring-1 ring-sidebar-border">
+            <BrandLogo src={logoUrl} className="h-9 w-9" />
           </div>
           <div className="flex flex-col min-w-0">
             <span className="text-sm font-semibold truncate">Jalaram Hospital</span>

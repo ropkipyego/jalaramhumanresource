@@ -18,13 +18,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Upload, Download, FileSpreadsheet, Loader2, CheckCircle2, AlertTriangle, CalendarRange } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Profile, ShiftCode } from '@/types/database';
+import { matchShiftTemplate, parseShiftCell, type ShiftTemplateRow } from '@/lib/shiftCodeParse';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-const VALID_CODES: ShiftCode[] = ['D', 'N', 'OFF', 'PH'];
 
 type Mode = 'weekly' | 'monthly';
 
-type ParsedShift = { date: string; shift: ShiftCode };
+type ParsedShift = { date: string; shift: ShiftCode; startTime: string | null; label: string };
 type ParsedRow = {
   staffId: string;
   name: string;
@@ -89,21 +89,19 @@ export default function RotaUpload() {
     const tag = mode === 'weekly' ? weekStart : format(new Date(monthStart + 'T00:00:00'), 'yyyy-MM');
     XLSX.utils.book_append_sheet(wb, ws, `Rota ${tag}`);
     XLSX.writeFile(wb, `rota-${dept?.code || 'dept'}-${tag}.xlsx`);
-    toast.success('Template downloaded — fill D / N / OFF / PH per cell and re-upload.');
+    toast.success('Template downloaded — use D, N, OFF, PH or timed day e.g. D 9AM / D 6:30AM.');
   };
 
-  const normalizeCode = (raw: unknown): ShiftCode | null | 'INVALID' => {
-    if (raw === null || raw === undefined) return null;
-    const s = String(raw).trim().toUpperCase().replace(/\s+/g, '');
-    if (!s || s === '-' || s === '—') return null;
-    if (VALID_CODES.includes(s as ShiftCode)) return s as ShiftCode;
-    // Common department variants
-    if (['DAY', '6AM', '8AM', '7AM', '9AM', 'AM', 'MORNING', 'M'].includes(s)) return 'D';
-    if (['NIGHT', 'PM', 'EVENING', 'NGT'].includes(s)) return 'N';
-    if (['REST', 'O', 'X', 'RESTDAY', 'LEAVE', 'L', 'A'].includes(s)) return 'OFF';
-    if (['HOLIDAY', 'HOL', 'H'].includes(s)) return 'PH';
-    if (['D/N', 'DN', 'N/D', 'ND'].includes(s)) return 'D'; // double shift → count as day
-    return 'INVALID';
+  const normalizeCell = (raw: unknown): ParsedShift | null | 'INVALID' => {
+    const parsed = parseShiftCell(raw);
+    if (parsed.kind === 'empty') return null;
+    if (parsed.kind === 'invalid') return 'INVALID';
+    return {
+      date: '', // filled by caller
+      shift: parsed.code,
+      startTime: parsed.startTime,
+      label: parsed.label,
+    };
   };
 
   /** Detect the "cumulative rota" matrix layout used by departments:
@@ -170,11 +168,11 @@ export default function RotaUpload() {
         const shifts: ParsedShift[] = [];
         let invalidCount = 0;
         for (const { col, day } of matrix.dateCols) {
-          const code = normalizeCode(row[col]);
-          if (code === 'INVALID') invalidCount++;
-          else if (code) {
+          const cell = normalizeCell(row[col]);
+          if (cell === 'INVALID') invalidCount++;
+          else if (cell) {
             const d = new Date(year, month, day);
-            shifts.push({ date: format(d, 'yyyy-MM-dd'), shift: code });
+            shifts.push({ ...cell, date: format(d, 'yyyy-MM-dd') });
           }
         }
         out.push({
@@ -205,9 +203,9 @@ export default function RotaUpload() {
       const shifts: ParsedShift[] = [];
       let invalidCount = 0;
       periodDates.forEach((d, i) => {
-        const code = normalizeCode(row[2 + i]);
-        if (code === 'INVALID') invalidCount++;
-        else if (code) shifts.push({ date: format(d, 'yyyy-MM-dd'), shift: code });
+        const cell = normalizeCell(row[2 + i]);
+        if (cell === 'INVALID') invalidCount++;
+        else if (cell) shifts.push({ ...cell, date: format(d, 'yyyy-MM-dd') });
       });
       out.push({
         staffId, name,
@@ -229,7 +227,12 @@ export default function RotaUpload() {
 
   /** Group shifts by Monday-anchored ISO week. */
   const groupByWeek = (rows: ParsedRow[]) => {
-    const byWeek = new Map<string, Array<{ employee_id: string; day_of_week: number; shift_code: ShiftCode }>>();
+    const byWeek = new Map<string, Array<{
+      employee_id: string;
+      day_of_week: number;
+      shift_code: ShiftCode;
+      startTime: string | null;
+    }>>();
     for (const r of rows) {
       for (const s of r.shifts) {
         const d = new Date(s.date + 'T00:00:00');
@@ -241,6 +244,7 @@ export default function RotaUpload() {
           employee_id: r.matchedEmployeeId!,
           day_of_week: dow,
           shift_code: s.shift,
+          startTime: s.startTime,
         });
       }
     }
@@ -251,9 +255,17 @@ export default function RotaUpload() {
     if (!user || !departmentId || validRows.length === 0) return;
     publish ? setPublishing(true) : setSaving(true);
     try {
+      // Load templates so "D 9AM" maps to expected start/end for biometric calc
+      const { data: tmplData } = await supabase
+        .from('shift_templates')
+        .select('id, code, name, start_time, end_time, department_id, is_active')
+        .eq('is_active', true);
+      const templates = (tmplData || []) as ShiftTemplateRow[];
+
       const byWeek = groupByWeek(validRows);
       let totalShifts = 0;
       let weeksTouched = 0;
+      let timedLinked = 0;
 
       for (const [wkStart, inserts] of byWeek) {
         // upsert rota_week
@@ -283,7 +295,17 @@ export default function RotaUpload() {
 
         await supabase.from('rota_assignments').delete().eq('rota_week_id', weekId!);
         if (inserts.length > 0) {
-          const payload = inserts.map((i) => ({ ...i, rota_week_id: weekId! }));
+          const payload = inserts.map((i) => {
+            const templateId = matchShiftTemplate(templates, departmentId, i.startTime, i.shift_code);
+            if (templateId) timedLinked++;
+            return {
+              employee_id: i.employee_id,
+              day_of_week: i.day_of_week,
+              shift_code: i.shift_code,
+              rota_week_id: weekId!,
+              shift_template_id: templateId,
+            };
+          });
           const { error } = await supabase.from('rota_assignments').insert(payload);
           if (error) throw error;
           totalShifts += inserts.length;
@@ -301,8 +323,8 @@ export default function RotaUpload() {
 
       toast.success(
         publish
-          ? `Published ${totalShifts} shifts across ${weeksTouched} week(s).`
-          : `Saved ${totalShifts} shifts as draft across ${weeksTouched} week(s).`
+          ? `Published ${totalShifts} shifts across ${weeksTouched} week(s)${timedLinked ? ` (${timedLinked} timed)` : ''}.`
+          : `Saved ${totalShifts} shifts as draft across ${weeksTouched} week(s)${timedLinked ? ` (${timedLinked} timed)` : ''}.`
       );
       setParsed(null);
       setFileName('');
@@ -333,7 +355,9 @@ export default function RotaUpload() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Upload Rota from Excel</h1>
           <p className="text-muted-foreground">
-            Download the template, fill shifts (D, N, OFF, PH) per staff per day, then upload.
+            Download the template, fill shifts per day, then upload. Clinical: D / N / OFF / PH.
+            Reception &amp; Housekeeping: timed day e.g. <code className="text-xs">D 9AM</code> or{" "}
+            <code className="text-xs">D 6:30AM</code> (matched to shift templates for biometric times).
           </p>
         </div>
         <div className="flex items-center gap-3 rounded-lg border bg-card px-4 py-2">
@@ -409,7 +433,10 @@ export default function RotaUpload() {
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">2. Upload filled Excel</CardTitle>
-          <CardDescription>Accepted codes: D (Day), N (Night), OFF, PH (Public Holiday). Empty cells = no shift.</CardDescription>
+          <CardDescription>
+            Accepted: D, N, OFF, PH — or timed day shifts like D 9AM, D 6:30AM (Reception / Housekeeping).
+            Empty cells = no shift. Plain D still uses the default day template.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <label className="flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-8 cursor-pointer hover:bg-muted/50 transition">

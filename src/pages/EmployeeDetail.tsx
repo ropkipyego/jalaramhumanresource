@@ -19,7 +19,6 @@ import { ArrowLeft, CheckCircle2, Circle, KeyRound, Loader2, Mail, User, UserX }
 import type { Branch, EmploymentType, Gender, HrStatus, JobGrade, Position } from "@/types/database";
 import { DEFAULT_TEMP_PASSWORD } from "@/lib/tempPassword";
 import { STAFF_EMAIL_DOMAIN, normalizeStaffEmail } from "@/lib/staffEmail";
-import { invokeEdgeFunction } from "@/lib/edgeFunctions";
 import { profileCompleteness } from "@/lib/profileCompleteness";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -175,12 +174,17 @@ export default function EmployeeDetail() {
       return;
     }
     setLoginBusy(true);
-    const { error } = await invokeEdgeFunction("go-live-credentials", {
-      body: { action: "update_email", user_id: id, email },
+    const { data, error } = await (supabase as any).rpc("admin_update_staff_email", {
+      _user_id: id,
+      _email: email,
     });
     setLoginBusy(false);
     if (error) {
-      toast.error(error);
+      toast.error(error.message);
+      return;
+    }
+    if (data?.error) {
+      toast.error(String(data.error));
       return;
     }
     toast.success(`Login email updated to ${email}`);
@@ -194,18 +198,19 @@ export default function EmployeeDetail() {
       return;
     }
     setLoginBusy(true);
-    const { data, error } = await invokeEdgeFunction<{ reset_count?: number }>("go-live-credentials", {
-      body: { action: "reset_passwords", user_ids: [id], password: DEFAULT_TEMP_PASSWORD },
+    const { data, error } = await (supabase as any).rpc("admin_reset_staff_password", {
+      _user_id: id,
+      _password: DEFAULT_TEMP_PASSWORD,
     });
     setLoginBusy(false);
     if (error) {
-      toast.error(error);
+      toast.error(error.message);
       return;
     }
     toast.success(
-      (data?.reset_count ?? 0) > 0
+      data?.success
         ? `Password set to ${DEFAULT_TEMP_PASSWORD}. Tell the staff member privately.`
-        : "No password was reset (account may be missing)."
+        : "Password reset finished."
     );
   };
 
@@ -244,7 +249,8 @@ export default function EmployeeDetail() {
                 <DialogHeader>
                   <DialogTitle>Offboard {String(p.full_name)}?</DialogTitle>
                   <DialogDescription>
-                    Marks the employee Terminated and deactivates login. Admins are notified.
+                    Soft-closes the account only. The person stays in history for payroll and audits —
+                    they cannot log in. Never hard-deletes.
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-2 py-2">
@@ -298,9 +304,10 @@ export default function EmployeeDetail() {
         <TabsContent value="login" className="mt-4 space-y-4">
           <Alert>
             <KeyRound className="h-4 w-4" />
-            <AlertTitle>Admin only</AlertTitle>
+            <AlertTitle>Admin only — works in the portal (no Edge Function)</AlertTitle>
             <AlertDescription>
-              Only ADMIN and SUPER_ADMIN can change login email or reset passwords. Staff never see this screen.
+              Change email or reset password here. For many staff or permanent delete of duplicates, open{" "}
+              <Link to="/staff/accounts" className="underline font-medium">User Accounts</Link>.
             </AlertDescription>
           </Alert>
 

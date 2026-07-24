@@ -146,6 +146,18 @@ export default function OrganizationSetup() {
                   <Input value={org.website ?? ""} onChange={(e) => setOrg({ ...org, website: e.target.value })} />
                 </div>
                 <div className="space-y-2 md:col-span-2">
+                  <Label>Logo URL</Label>
+                  <Input
+                    value={org.logo_url ?? ""}
+                    onChange={(e) => setOrg({ ...org, logo_url: e.target.value })}
+                    placeholder="https://... or /jalaram-logo.svg"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Paste a public image URL, or put a file in <code>public/jalaram-logo.svg</code> / <code>.webp</code>.
+                    Shows on login and sidebar.
+                  </p>
+                </div>
+                <div className="space-y-2 md:col-span-2">
                   <Label>Address</Label>
                   <Input value={org.address ?? ""} onChange={(e) => setOrg({ ...org, address: e.target.value })} />
                 </div>

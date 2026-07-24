@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PasswordInput } from '@/components/ui/password-input';
-import { ClipboardList, Loader2, Mail, Lock, KeyRound } from 'lucide-react';
+import { Loader2, Mail, Lock, KeyRound } from 'lucide-react';
+import { BrandLogo } from '@/components/BrandLogo';
 import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
 import { STAFF_EMAIL_DOMAIN } from '@/lib/staffEmail';
@@ -107,8 +108,8 @@ export default function Auth() {
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-accent/20 to-background p-4">
       <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="space-y-4 text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-xl bg-primary shadow-lg">
-            <ClipboardList className="h-8 w-8 text-primary-foreground" />
+          <div className="mx-auto flex h-16 w-16 items-center justify-center overflow-hidden rounded-xl bg-white shadow-lg ring-1 ring-border">
+            <BrandLogo className="h-14 w-14" />
           </div>
           <div>
             <CardTitle className="text-2xl font-bold">Jalaram Hospital HR</CardTitle>
