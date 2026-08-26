@@ -238,6 +238,67 @@ export type Database = {
         }
         Relationships: []
       }
+      attendance_corrections: {
+        Row: {
+          attendance_record_id: string | null
+          corrected_by: string | null
+          created_at: string
+          employee_id: string
+          field_name: string
+          id: string
+          new_value: string | null
+          old_value: string | null
+          reason: string
+          shift_date: string
+        }
+        Insert: {
+          attendance_record_id?: string | null
+          corrected_by?: string | null
+          created_at?: string
+          employee_id: string
+          field_name: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          reason: string
+          shift_date: string
+        }
+        Update: {
+          attendance_record_id?: string | null
+          corrected_by?: string | null
+          created_at?: string
+          employee_id?: string
+          field_name?: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          reason?: string
+          shift_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_corrections_attendance_record_id_fkey"
+            columns: ["attendance_record_id"]
+            isOneToOne: false
+            referencedRelation: "attendance_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_corrections_corrected_by_fkey"
+            columns: ["corrected_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_corrections_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendance_daily: {
         Row: {
           approval_status: string
@@ -365,6 +426,329 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      attendance_import_batches: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          date_from: string | null
+          date_to: string | null
+          error_rows: number
+          errors_json: Json
+          file_name: string
+          id: string
+          imported_by: string | null
+          inserted_rows: number
+          skipped_rows: number
+          source: string
+          status: Database["public"]["Enums"]["import_batch_status"]
+          total_rows: number
+          warning_count: number
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          date_from?: string | null
+          date_to?: string | null
+          error_rows?: number
+          errors_json?: Json
+          file_name: string
+          id?: string
+          imported_by?: string | null
+          inserted_rows?: number
+          skipped_rows?: number
+          source?: string
+          status?: Database["public"]["Enums"]["import_batch_status"]
+          total_rows?: number
+          warning_count?: number
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          date_from?: string | null
+          date_to?: string | null
+          error_rows?: number
+          errors_json?: Json
+          file_name?: string
+          id?: string
+          imported_by?: string | null
+          inserted_rows?: number
+          skipped_rows?: number
+          source?: string
+          status?: Database["public"]["Enums"]["import_batch_status"]
+          total_rows?: number
+          warning_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_import_batches_imported_by_fkey"
+            columns: ["imported_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      attendance_processing_runs: {
+        Row: {
+          anomaly_count: number
+          calculation_version: number
+          created_at: string
+          engine_version: string
+          id: string
+          notes: string | null
+          period_end: string
+          period_start: string
+          record_count: number
+          run_by: string | null
+          shift_count: number
+          status: string
+        }
+        Insert: {
+          anomaly_count?: number
+          calculation_version?: number
+          created_at?: string
+          engine_version?: string
+          id?: string
+          notes?: string | null
+          period_end: string
+          period_start: string
+          record_count?: number
+          run_by?: string | null
+          shift_count?: number
+          status?: string
+        }
+        Update: {
+          anomaly_count?: number
+          calculation_version?: number
+          created_at?: string
+          engine_version?: string
+          id?: string
+          notes?: string | null
+          period_end?: string
+          period_start?: string
+          record_count?: number
+          run_by?: string | null
+          shift_count?: number
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_processing_runs_run_by_fkey"
+            columns: ["run_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      attendance_punches: {
+        Row: {
+          batch_id: string | null
+          created_at: string
+          device_id: string | null
+          employee_id: string
+          id: string
+          notes: string | null
+          punch_at: string
+          punch_date: string
+          punch_time: string | null
+          punch_type: Database["public"]["Enums"]["punch_type"] | null
+          raw_staff_id: string | null
+          raw_value: string | null
+          source: Database["public"]["Enums"]["punch_source"]
+        }
+        Insert: {
+          batch_id?: string | null
+          created_at?: string
+          device_id?: string | null
+          employee_id: string
+          id?: string
+          notes?: string | null
+          punch_at: string
+          punch_date: string
+          punch_time?: string | null
+          punch_type?: Database["public"]["Enums"]["punch_type"] | null
+          raw_staff_id?: string | null
+          raw_value?: string | null
+          source?: Database["public"]["Enums"]["punch_source"]
+        }
+        Update: {
+          batch_id?: string | null
+          created_at?: string
+          device_id?: string | null
+          employee_id?: string
+          id?: string
+          notes?: string | null
+          punch_at?: string
+          punch_date?: string
+          punch_time?: string | null
+          punch_type?: Database["public"]["Enums"]["punch_type"] | null
+          raw_staff_id?: string | null
+          raw_value?: string | null
+          source?: Database["public"]["Enums"]["punch_source"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_punches_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "attendance_import_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_punches_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      attendance_records: {
+        Row: {
+          actual_end: string | null
+          actual_start: string | null
+          anomalies: Json
+          anomaly_code: string | null
+          calculation_version: number
+          created_at: string
+          department_id: string | null
+          early_departure_minutes: number
+          employee_id: string
+          id: string
+          intervals: Json
+          is_corrected: boolean
+          late_minutes: number
+          matched_punch_ids: string[]
+          overtime_approved_at: string | null
+          overtime_approved_by: string | null
+          overtime_minutes: number
+          overtime_reason: string | null
+          overtime_status: Database["public"]["Enums"]["overtime_status"]
+          processing_run_id: string | null
+          scheduled_end: string | null
+          scheduled_minutes: number
+          scheduled_start: string | null
+          sequence: number
+          shift_date: string
+          shift_instance_id: string | null
+          shift_type: string
+          source_import_id: string | null
+          status: Database["public"]["Enums"]["attendance_result_status"]
+          updated_at: string
+          worked_minutes: number
+        }
+        Insert: {
+          actual_end?: string | null
+          actual_start?: string | null
+          anomalies?: Json
+          anomaly_code?: string | null
+          calculation_version?: number
+          created_at?: string
+          department_id?: string | null
+          early_departure_minutes?: number
+          employee_id: string
+          id?: string
+          intervals?: Json
+          is_corrected?: boolean
+          late_minutes?: number
+          matched_punch_ids?: string[]
+          overtime_approved_at?: string | null
+          overtime_approved_by?: string | null
+          overtime_minutes?: number
+          overtime_reason?: string | null
+          overtime_status?: Database["public"]["Enums"]["overtime_status"]
+          processing_run_id?: string | null
+          scheduled_end?: string | null
+          scheduled_minutes?: number
+          scheduled_start?: string | null
+          sequence?: number
+          shift_date: string
+          shift_instance_id?: string | null
+          shift_type?: string
+          source_import_id?: string | null
+          status?: Database["public"]["Enums"]["attendance_result_status"]
+          updated_at?: string
+          worked_minutes?: number
+        }
+        Update: {
+          actual_end?: string | null
+          actual_start?: string | null
+          anomalies?: Json
+          anomaly_code?: string | null
+          calculation_version?: number
+          created_at?: string
+          department_id?: string | null
+          early_departure_minutes?: number
+          employee_id?: string
+          id?: string
+          intervals?: Json
+          is_corrected?: boolean
+          late_minutes?: number
+          matched_punch_ids?: string[]
+          overtime_approved_at?: string | null
+          overtime_approved_by?: string | null
+          overtime_minutes?: number
+          overtime_reason?: string | null
+          overtime_status?: Database["public"]["Enums"]["overtime_status"]
+          processing_run_id?: string | null
+          scheduled_end?: string | null
+          scheduled_minutes?: number
+          scheduled_start?: string | null
+          sequence?: number
+          shift_date?: string
+          shift_instance_id?: string | null
+          shift_type?: string
+          source_import_id?: string | null
+          status?: Database["public"]["Enums"]["attendance_result_status"]
+          updated_at?: string
+          worked_minutes?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_records_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_records_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_records_overtime_approved_by_fkey"
+            columns: ["overtime_approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_records_processing_run_id_fkey"
+            columns: ["processing_run_id"]
+            isOneToOne: false
+            referencedRelation: "attendance_processing_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_records_shift_instance_id_fkey"
+            columns: ["shift_instance_id"]
+            isOneToOne: false
+            referencedRelation: "shift_instances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_records_source_import_id_fkey"
+            columns: ["source_import_id"]
+            isOneToOne: false
+            referencedRelation: "attendance_import_batches"
             referencedColumns: ["id"]
           },
         ]
@@ -2135,6 +2519,89 @@ export type Database = {
           },
         ]
       }
+      shift_instances: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          crosses_midnight: boolean
+          department_id: string | null
+          employee_id: string
+          id: string
+          notes: string | null
+          scheduled_end: string | null
+          scheduled_start: string | null
+          sequence: number
+          shift_code: string
+          shift_date: string
+          shift_definition_id: string | null
+          source: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          crosses_midnight?: boolean
+          department_id?: string | null
+          employee_id: string
+          id?: string
+          notes?: string | null
+          scheduled_end?: string | null
+          scheduled_start?: string | null
+          sequence?: number
+          shift_code: string
+          shift_date: string
+          shift_definition_id?: string | null
+          source?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          crosses_midnight?: boolean
+          department_id?: string | null
+          employee_id?: string
+          id?: string
+          notes?: string | null
+          scheduled_end?: string | null
+          scheduled_start?: string | null
+          sequence?: number
+          shift_code?: string
+          shift_date?: string
+          shift_definition_id?: string | null
+          source?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shift_instances_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_instances_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_instances_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_instances_shift_definition_id_fkey"
+            columns: ["shift_definition_id"]
+            isOneToOne: false
+            referencedRelation: "shift_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shift_swap_requests: {
         Row: {
           created_at: string
@@ -2564,9 +3031,25 @@ export type Database = {
     Enums: {
       app_role: "STAFF" | "HEAD" | "ADMIN" | "SUPER_ADMIN" | "FINANCE_ADMIN"
       attendance_approval_status: "PENDING" | "APPROVED" | "REJECTED"
+      attendance_result_status:
+        | "PRESENT"
+        | "LATE"
+        | "EARLY_DEPARTURE"
+        | "OVERTIME"
+        | "MISSING_IN"
+        | "MISSING_OUT"
+        | "NO_PUNCHES"
+        | "ANOMALY"
+        | "MANUAL_REVIEW"
+        | "APPROVED"
+        | "REJECTED"
+        | "OFF"
+        | "ON_LEAVE"
+        | "HOLIDAY"
       employment_type: "PERMANENT" | "CONTRACT" | "LOCUM" | "INTERN"
       holiday_scope: "NATIONAL" | "HOSPITAL" | "COUNTY" | "CUSTOM"
       hr_status: "ACTIVE" | "SUSPENDED" | "ON_LEAVE" | "TERMINATED"
+      import_batch_status: "PENDING" | "COMPLETED" | "FAILED"
       leave_status: "pending" | "approved" | "rejected" | "returned"
       leave_type:
         | "annual"
@@ -2578,6 +3061,12 @@ export type Database = {
         | "other"
         | "compassionate"
         | "study"
+      overtime_status:
+        | "NONE"
+        | "CALCULATED"
+        | "PENDING_APPROVAL"
+        | "APPROVED"
+        | "REJECTED"
       payroll_line_kind: "EARNING" | "DEDUCTION" | "EMPLOYER_CONTRIB"
       payroll_period_status:
         | "DRAFT"
@@ -2586,6 +3075,8 @@ export type Database = {
         | "HR_REVIEWED"
         | "FINANCE_APPROVED"
         | "LOCKED"
+      punch_source: "BIOMETRIC" | "MANUAL" | "WEB"
+      punch_type: "IN" | "OUT"
       rota_status: "draft" | "published"
       shift_code: "D" | "N" | "OFF" | "PH"
       statutory_rate_type:
@@ -2724,9 +3215,26 @@ export const Constants = {
     Enums: {
       app_role: ["STAFF", "HEAD", "ADMIN", "SUPER_ADMIN", "FINANCE_ADMIN"],
       attendance_approval_status: ["PENDING", "APPROVED", "REJECTED"],
+      attendance_result_status: [
+        "PRESENT",
+        "LATE",
+        "EARLY_DEPARTURE",
+        "OVERTIME",
+        "MISSING_IN",
+        "MISSING_OUT",
+        "NO_PUNCHES",
+        "ANOMALY",
+        "MANUAL_REVIEW",
+        "APPROVED",
+        "REJECTED",
+        "OFF",
+        "ON_LEAVE",
+        "HOLIDAY",
+      ],
       employment_type: ["PERMANENT", "CONTRACT", "LOCUM", "INTERN"],
       holiday_scope: ["NATIONAL", "HOSPITAL", "COUNTY", "CUSTOM"],
       hr_status: ["ACTIVE", "SUSPENDED", "ON_LEAVE", "TERMINATED"],
+      import_batch_status: ["PENDING", "COMPLETED", "FAILED"],
       leave_status: ["pending", "approved", "rejected", "returned"],
       leave_type: [
         "annual",
@@ -2739,6 +3247,13 @@ export const Constants = {
         "compassionate",
         "study",
       ],
+      overtime_status: [
+        "NONE",
+        "CALCULATED",
+        "PENDING_APPROVAL",
+        "APPROVED",
+        "REJECTED",
+      ],
       payroll_line_kind: ["EARNING", "DEDUCTION", "EMPLOYER_CONTRIB"],
       payroll_period_status: [
         "DRAFT",
@@ -2748,6 +3263,8 @@ export const Constants = {
         "FINANCE_APPROVED",
         "LOCKED",
       ],
+      punch_source: ["BIOMETRIC", "MANUAL", "WEB"],
+      punch_type: ["IN", "OUT"],
       rota_status: ["draft", "published"],
       shift_code: ["D", "N", "OFF", "PH"],
       statutory_rate_type: [
