@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.1"
+    PostgrestVersion: "14.17"
   }
   public: {
     Tables: {
@@ -1828,6 +1828,7 @@ export type Database = {
           kra_pin: string | null
           license_expiry_date: string | null
           manager_id: string | null
+          must_change_password: boolean
           national_id: string | null
           next_of_kin_name: string | null
           next_of_kin_phone: string | null
@@ -1871,6 +1872,7 @@ export type Database = {
           kra_pin?: string | null
           license_expiry_date?: string | null
           manager_id?: string | null
+          must_change_password?: boolean
           national_id?: string | null
           next_of_kin_name?: string | null
           next_of_kin_phone?: string | null
@@ -1914,6 +1916,7 @@ export type Database = {
           kra_pin?: string | null
           license_expiry_date?: string | null
           manager_id?: string | null
+          must_change_password?: boolean
           national_id?: string | null
           next_of_kin_name?: string | null
           next_of_kin_phone?: string | null
@@ -2461,7 +2464,31 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_purge_staff: {
+        Args: { _confirm: string; _user_id: string }
+        Returns: Json
+      }
+      admin_reset_staff_password: {
+        Args: { _password?: string; _user_id: string }
+        Returns: Json
+      }
+      admin_update_staff_email: {
+        Args: { _email: string; _user_id: string }
+        Returns: Json
+      }
+      attendance_payroll_readiness: {
+        Args: { _period_id: string }
+        Returns: Json
+      }
       bulk_map_biometric_ids: { Args: { _map: Json }; Returns: Json }
+      bulk_set_attendance_approval: {
+        Args: {
+          _ids: string[]
+          _status: Database["public"]["Enums"]["attendance_approval_status"]
+          _zero_ot_on_reject?: boolean
+        }
+        Returns: Json
+      }
       calculate_payroll: { Args: { _period_id: string }; Returns: Json }
       calculate_used_leave_days: {
         Args: { _employee_id: string; _year?: number }
@@ -2529,9 +2556,14 @@ export type Database = {
         Args: { _employee_id: string; _reason: string }
         Returns: Json
       }
+      set_must_change_password: {
+        Args: { _user_id: string; _value?: boolean }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "STAFF" | "HEAD" | "ADMIN" | "SUPER_ADMIN" | "FINANCE_ADMIN"
+      attendance_approval_status: "PENDING" | "APPROVED" | "REJECTED"
       employment_type: "PERMANENT" | "CONTRACT" | "LOCUM" | "INTERN"
       holiday_scope: "NATIONAL" | "HOSPITAL" | "COUNTY" | "CUSTOM"
       hr_status: "ACTIVE" | "SUSPENDED" | "ON_LEAVE" | "TERMINATED"
@@ -2691,6 +2723,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["STAFF", "HEAD", "ADMIN", "SUPER_ADMIN", "FINANCE_ADMIN"],
+      attendance_approval_status: ["PENDING", "APPROVED", "REJECTED"],
       employment_type: ["PERMANENT", "CONTRACT", "LOCUM", "INTERN"],
       holiday_scope: ["NATIONAL", "HOSPITAL", "COUNTY", "CUSTOM"],
       hr_status: ["ACTIVE", "SUSPENDED", "ON_LEAVE", "TERMINATED"],
