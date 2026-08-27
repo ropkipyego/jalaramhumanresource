@@ -2943,6 +2943,10 @@ export type Database = {
         Args: { _email: string; _user_id: string }
         Returns: Json
       }
+      attendance_engine_input: {
+        Args: { _from: string; _to: string }
+        Returns: Json
+      }
       attendance_payroll_readiness: {
         Args: { _period_id: string }
         Returns: Json
@@ -3004,7 +3008,10 @@ export type Database = {
         }
         Returns: boolean
       }
-      import_attendance_punches: { Args: { _punches: Json }; Returns: Json }
+      import_attendance_punches: {
+        Args: { _file_name?: string; _punches: Json; _source?: string }
+        Returns: Json
+      }
       is_department_head: {
         Args: { _department_id: string; _user_id: string }
         Returns: boolean
@@ -3026,6 +3033,10 @@ export type Database = {
       set_must_change_password: {
         Args: { _user_id: string; _value?: boolean }
         Returns: undefined
+      }
+      sync_shift_instances_from_rota: {
+        Args: { _from: string; _to: string }
+        Returns: Json
       }
     }
     Enums: {
