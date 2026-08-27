@@ -166,9 +166,10 @@ describe("attendanceEngine — shift outcomes", () => {
 
   it("flags implausible durations and refuses to pay them", () => {
     const [r] = processEmployee(EMP, [shift({ id: "s1", shift_date: "2026-07-01" })], [
-      punch("a", "2026-07-01T05:00:00.000Z"),
-      punch("b", "2026-07-01T23:30:00.000Z"),
+      punch("a", "2026-07-01T04:30:00.000Z"),
+      punch("b", "2026-07-01T21:00:00.000Z"),
     ]);
+
     expect(r.status).toBe("ANOMALY");
     expect(r.anomalies).toContain("IMPLAUSIBLE_DURATION");
     expect(r.worked_minutes).toBe(0);
