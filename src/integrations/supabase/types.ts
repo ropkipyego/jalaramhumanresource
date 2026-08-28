@@ -2970,6 +2970,15 @@ export type Database = {
         Args: { _from: string; _to: string }
         Returns: Json
       }
+      correct_attendance_record: {
+        Args: {
+          _field: string
+          _new_value: string
+          _reason: string
+          _record_id: string
+        }
+        Returns: Json
+      }
       derive_attendance: { Args: { _period_id: string }; Returns: Json }
       get_head_departments: { Args: { _user_id: string }; Returns: string[] }
       get_or_create_leave_entitlement: {
@@ -3033,6 +3042,14 @@ export type Database = {
       set_must_change_password: {
         Args: { _user_id: string; _value?: boolean }
         Returns: undefined
+      }
+      set_overtime_approval: {
+        Args: {
+          _ids: string[]
+          _reason?: string
+          _status: Database["public"]["Enums"]["overtime_status"]
+        }
+        Returns: Json
       }
       sync_shift_instances_from_rota: {
         Args: { _from: string; _to: string }
