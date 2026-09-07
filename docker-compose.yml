@@ -1,0 +1,123 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-jalaramhr}
+      POSTGRES_USER: ${POSTGRES_USER:-jalaramhr}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-jalaramhr}
+    ports:
+      - "${POSTGRES_HOST_PORT:-5433}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./scripts/db/init-extensions.sql:/docker-entrypoint-initdb.d/00-extensions.sql:ro
+      - ./scripts/db/01-hr-platform.sql:/docker-entrypoint-initdb.d/01-hr-platform.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-jalaramhr}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7
+    ports:
+      - "${REDIS_HOST_PORT:-6380}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-jalaramhr}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-jalaramhr123}
+    ports:
+      - "${MINIO_API_HOST_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_HOST_PORT:-9001}:9001"
+    volumes:
+      - minio-data:/data
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_started
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-jalaramhr}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-jalaramhr123}
+      S3_BUCKET: ${S3_BUCKET:-jalaramhr-files}
+    volumes:
+      - ./ops/minio-init.sh:/minio-init.sh:ro
+    entrypoint: ["/bin/sh", "/minio-init.sh"]
+
+  postgrest:
+    image: postgrest/postgrest:v12.2.3
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGRST_DB_URI: postgres://${POSTGRES_USER:-jalaramhr}:${POSTGRES_PASSWORD:-jalaramhr}@postgres:5432/${POSTGRES_DB:-jalaramhr}
+      PGRST_DB_SCHEMAS: public,storage
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_DB_EXTRA_SEARCH_PATH: public,extensions
+      PGRST_JWT_SECRET: ${JWT_ACCESS_SECRET:-dev-jwt-secret-change-me-in-production}
+      PGRST_JWT_AUD: authenticated
+    ports:
+      - "3001:3000"
+
+  backend:
+    build:
+      context: ./backend
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: postgres
+      REDIS_HOST: redis
+      S3_ENDPOINT: http://minio:9000
+      S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:-http://localhost:8080/minio}
+      S3_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-jalaramhr}
+      S3_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-jalaramhr123}
+      DEFAULT_TENANT_CODE: ${DEFAULT_TENANT_CODE:-jalaram}
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api/v1}
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-http://localhost:8080}
+        VITE_SUPABASE_PUBLISHABLE_KEY: ${VITE_SUPABASE_PUBLISHABLE_KEY:-local-anon-key}
+        VITE_DEFAULT_TENANT: ${DEFAULT_TENANT_CODE:-jalaram}
+    ports:
+      - "5173:80"
+    depends_on:
+      backend:
+        condition: service_started
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./infra/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      frontend:
+        condition: service_started
+      backend:
+        condition: service_started
+      postgrest:
+        condition: service_started
+
+volumes:
+  postgres-data:
+  minio-data:

@@ -1,0 +1,31 @@
+# Production / Contabo VPS — only nginx exposed on localhost.
+# Deploy: FRESH_DB=1 bash scripts/deploy-contabo.sh
+#
+# Co-host with Afya-Sasa (EMR on 8080, HR on 8081):
+#   NGINX_HOST_PORT=8081 in .env
+
+services:
+  postgres:
+    ports: []
+
+  redis:
+    ports: []
+
+  minio:
+    ports: []
+
+  postgrest:
+    ports: []
+
+  backend:
+    ports: []
+    environment:
+      NODE_ENV: production
+      S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:-http://127.0.0.1:8081/minio}
+
+  frontend:
+    ports: []
+
+  nginx:
+    ports:
+      - "127.0.0.1:${NGINX_HOST_PORT:-8081}:80"
