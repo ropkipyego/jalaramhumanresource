@@ -85,17 +85,29 @@ git pull
 bash scripts/deploy-contabo.sh
 ```
 
+### If login fails (`public.profiles does not exist`)
+
+Production may only have `hr.*` tables. **Do not upload CSV users** — run the one-time schema repair:
+
+```bash
+bash ops/backup-postgres.sh
+CONFIRM_PRODUCTION_SCHEMA=yes USE_PRODUCTION_COMPOSE=1 \
+  bash scripts/db/apply-production-schema.sh
+```
+
+Full guide: [production-schema-repair.md](production-schema-repair.md)
+
 First-time super admin (profile + role + password):
 
 ```bash
-ADMIN_EMAIL=admin@humasync.solutions NEW_PASSWORD='YourNewSecurePassword' \
+USE_PRODUCTION_COMPOSE=1 ADMIN_EMAIL=admin@humasync.solutions NEW_PASSWORD='YourNewSecurePassword' \
   bash scripts/db/ensure-superadmin.sh
 ```
 
 Password reset only (if profile already exists):
 
 ```bash
-ADMIN_EMAIL=admin@humasync.solutions NEW_PASSWORD='YourNewSecurePassword' \
+USE_PRODUCTION_COMPOSE=1 ADMIN_EMAIL=admin@humasync.solutions NEW_PASSWORD='YourNewSecurePassword' \
   bash scripts/db/reset-admin-password.sh
 ```
 
