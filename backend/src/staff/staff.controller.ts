@@ -8,9 +8,10 @@ class InviteStaffDto {
   @IsEmail()
   email!: string;
 
+  @IsOptional()
   @IsString()
   @MinLength(8)
-  password!: string;
+  password?: string;
 
   @IsString()
   fullName!: string;

@@ -74,3 +74,81 @@ export function phasePercent(profile: ProfileLike, phase: string): number {
   const done = fields.filter((f) => filled(p[f.key])).length;
   return Math.round((done / fields.length) * 100);
 }
+
+/** Document uploads required before staff can use the rest of the app. */
+export const REQUIRED_DOC_TYPES = [
+  "ID_COPY",
+  "KRA_PIN",
+  "NSSF",
+  "SHIF",
+  "BANK_PROOF",
+] as const;
+
+const DOC_LABELS: Record<string, string> = {
+  ID_COPY: "National ID copy",
+  KRA_PIN: "KRA PIN document",
+  NSSF: "NSSF document",
+  SHIF: "SHIF document",
+  BANK_PROOF: "Bank proof",
+  LICENSE: "Practicing license",
+};
+
+export type DocRow = { kind?: string | null; doc_type?: string | null };
+
+export function docTypeKey(row: DocRow): string {
+  return String(row.doc_type || row.kind || "").toUpperCase();
+}
+
+function licenseRequired(profile?: ProfileLike): boolean {
+  const p = profile ?? {};
+  return filled(p.practicing_license_no) || filled(p.license_expiry_date);
+}
+
+export function documentCompleteness(docs: DocRow[], profile?: ProfileLike) {
+  const present = new Set(docs.map(docTypeKey).filter(Boolean));
+  const required: string[] = [...REQUIRED_DOC_TYPES];
+  if (licenseRequired(profile)) required.push("LICENSE");
+  const missing = required.filter((t) => !present.has(t)).map((t) => DOC_LABELS[t] || t);
+  const done = required.length - missing.length;
+  return {
+    required: required.length,
+    done,
+    percent: required.length ? Math.round((done / required.length) * 100) : 100,
+    missing,
+    complete: missing.length === 0,
+  };
+}
+
+export type StaffOnboardingStatus = {
+  complete: boolean;
+  percent: number;
+  profileMissing: string[];
+  documentsMissing: string[];
+  documentsPercent: number;
+};
+
+export function staffOnboardingStatus(
+  profile: ProfileLike,
+  docs: DocRow[],
+): StaffOnboardingStatus {
+  const p = profile ?? {};
+  const fieldList = STAFF_PROFILE_FIELDS.filter((f) => {
+    if (f.phase === "License") return licenseRequired(profile);
+    return true;
+  });
+  const profileMissing = fieldList.filter((f) => !filled(p[f.key])).map((f) => f.label);
+  const docsStatus = documentCompleteness(docs, profile);
+  const totalSteps = fieldList.length + docsStatus.required;
+  const doneSteps = fieldList.length - profileMissing.length + docsStatus.done;
+  return {
+    complete: profileMissing.length === 0 && docsStatus.complete,
+    percent: totalSteps ? Math.round((doneSteps / totalSteps) * 100) : 100,
+    profileMissing,
+    documentsMissing: docsStatus.missing,
+    documentsPercent: docsStatus.percent,
+  };
+}
+
+export function isStaffOnboardingComplete(profile: ProfileLike, docs: DocRow[]): boolean {
+  return staffOnboardingStatus(profile, docs).complete;
+}

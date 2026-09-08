@@ -3,6 +3,7 @@ import { Link, useSearchParams, Navigate } from "react-router-dom";
 import { format } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRole } from "@/hooks/useRole";
+import { useStaffOnboarding } from "@/hooks/useStaffOnboarding";
 import {
   uploadEmployeeDocument,
   downloadEmployeeDocument,
@@ -28,7 +29,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Download, FileUp, FolderOpen, Loader2, Plus, Trash2, User } from "lucide-react";
+import { Eye, FileUp, FolderOpen, Loader2, Plus, Trash2, User } from "lucide-react";
 
 const db = supabase as any;
 
@@ -60,6 +61,7 @@ function normalizeDoc(row: any): Doc {
 export default function EmployeeDocuments() {
   const { user } = useAuth();
   const { canManageStaffLogins } = useRole();
+  const { reload: reloadOnboarding } = useStaffOnboarding();
   const [params] = useSearchParams();
   const adminViewId = params.get("employeeId");
   const denied = !!(adminViewId && !canManageStaffLogins);
@@ -128,6 +130,7 @@ export default function EmployeeDocuments() {
       setFile(null);
       setKind("ID_COPY");
       load();
+      reloadOnboarding();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Upload failed");
     } finally {
@@ -159,6 +162,7 @@ export default function EmployeeDocuments() {
       toast.success("Document deleted");
       setDeleteTarget(null);
       load();
+      reloadOnboarding();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Delete failed");
     } finally {
@@ -244,8 +248,8 @@ export default function EmployeeDocuments() {
                     <TableCell className="text-sm">{d.file_name}</TableCell>
                     <TableCell>{format(new Date(d.created_at), "dd MMM yyyy")}</TableCell>
                     <TableCell className="text-right space-x-1">
-                      <Button size="sm" variant="ghost" onClick={() => download(d)} title="Download">
-                        <Download className="h-4 w-4" />
+                      <Button size="sm" variant="ghost" onClick={() => download(d)} title="View document">
+                        <Eye className="h-4 w-4 mr-1" /> View
                       </Button>
                       {canDelete && (
                         <Button

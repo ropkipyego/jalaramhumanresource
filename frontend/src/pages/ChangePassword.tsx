@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { useRole } from "@/hooks/useRole";
 import { apiRequest } from "@/lib/api-client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -13,15 +13,24 @@ import { KeyRound, Loader2, ShieldAlert } from "lucide-react";
 import { DEFAULT_TEMP_PASSWORD, isTempPassword } from "@/lib/tempPassword";
 
 export default function ChangePassword() {
-  const { user, loading, refreshProfile } = useAuth() as any;
+  const { user, profile, loading, refreshProfile } = useAuth();
+  const { isSuperAdmin } = useRole();
   const navigate = useNavigate();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
 
+  const mustChange = !!(profile as any)?.must_change_password;
+
   useEffect(() => {
     if (!loading && !user) navigate("/auth", { replace: true });
   }, [user, loading, navigate]);
+
+  useEffect(() => {
+    if (!loading && user && profile && !mustChange) {
+      navigate(isSuperAdmin ? "/dashboard" : "/my-profile", { replace: true });
+    }
+  }, [user, profile, loading, mustChange, isSuperAdmin, navigate]);
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,12 +56,9 @@ export default function ChangePassword() {
         method: "POST",
         body: JSON.stringify({ newPassword: password }),
       });
-      if (user?.id) {
-        await (supabase as any).rpc("set_must_change_password", { _user_id: user.id, _value: false });
-      }
       await refreshProfile?.();
-      toast.success("Password updated");
-      navigate("/dashboard", { replace: true });
+      toast.success("Password updated — complete your profile next");
+      navigate(isSuperAdmin ? "/dashboard" : "/my-profile", { replace: true });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not update password");
     } finally {
@@ -76,15 +82,15 @@ export default function ChangePassword() {
             <KeyRound className="h-5 w-5" /> Set a new password
           </CardTitle>
           <CardDescription>
-            For security, you must choose your own password before using the system.
+            Your account uses a temporary password ({DEFAULT_TEMP_PASSWORD}). Choose your own password before continuing.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Alert className="mb-4">
             <ShieldAlert className="h-4 w-4" />
-            <AlertTitle>Password rules</AlertTitle>
+            <AlertTitle>First login — required</AlertTitle>
             <AlertDescription>
-              At least 8 characters, with uppercase, lowercase, and a number. Do not reuse {DEFAULT_TEMP_PASSWORD}.
+              At least 8 characters, with uppercase, lowercase, and a number. After this you will complete your profile and upload documents.
             </AlertDescription>
           </Alert>
           <form onSubmit={save} className="space-y-4">

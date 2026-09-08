@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
-import { Outlet, Navigate } from 'react-router-dom';
+import React from 'react';
+import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useStaffOnboarding } from '@/hooks/useStaffOnboarding';
 import { AppSidebar } from './AppSidebar';
 import { AppHeader } from './AppHeader';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
@@ -8,15 +9,20 @@ import { Loader2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 
+const ONBOARDING_PATHS = ['/my-profile', '/my-documents'];
+
 export function AppLayout() {
   const { user, profile, loading, signOut } = useAuth();
+  const location = useLocation();
+  const { complete: onboardingComplete, loading: onboardingLoading, exempt } = useStaffOnboarding();
 
   const mustChange = !!(profile as any)?.must_change_password;
   const inactive =
     !!profile &&
     ((profile as any).is_active === false || String((profile as any).hr_status || "") === "TERMINATED");
+  const onOnboardingPath = ONBOARDING_PATHS.some((p) => location.pathname.startsWith(p));
 
-  if (loading) {
+  if (loading || (!exempt && onboardingLoading)) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4 animate-fade-in">
@@ -50,6 +56,10 @@ export function AppLayout() {
 
   if (mustChange) {
     return <Navigate to="/change-password" replace />;
+  }
+
+  if (!exempt && !onboardingComplete && !onOnboardingPath) {
+    return <Navigate to="/my-profile" replace state={{ onboardingRequired: true }} />;
   }
 
   return (

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useStaffOnboarding } from '@/hooks/useStaffOnboarding';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -47,6 +48,8 @@ const EMPTY: Editable = {
 
 export default function MyProfile() {
   const { user, refreshProfile } = useAuth() as any;
+  const location = useLocation();
+  const { status, reload, complete, exempt } = useStaffOnboarding();
   const [form, setForm] = useState<Editable>(EMPTY);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -93,6 +96,7 @@ export default function MyProfile() {
       toast.success('Profile saved');
       setReadOnlyData((d: any) => (d ? { ...d, ...payload } : d));
       refreshProfile?.();
+      reload();
     }
   };
 
@@ -118,6 +122,28 @@ export default function MyProfile() {
           <Link to="/change-password"><KeyRound className="h-4 w-4 mr-2" />Change password</Link>
         </Button>
       </div>
+
+      {!exempt && !complete && (
+        <Alert variant={location.state?.onboardingRequired ? 'destructive' : 'default'}>
+          <Info className="h-4 w-4" />
+          <AlertTitle>
+            Complete your employee file ({status.percent}%)
+            {location.state?.onboardingRequired ? ' — required before using the system' : ''}
+          </AlertTitle>
+          <AlertDescription className="space-y-2 text-sm">
+            <Progress value={status.percent} className="h-2 max-w-md" />
+            {status.profileMissing.length > 0 && (
+              <p>Profile fields still needed: {status.profileMissing.join(', ')}.</p>
+            )}
+            {status.documentsMissing.length > 0 && (
+              <p>Documents still needed: {status.documentsMissing.join(', ')}.</p>
+            )}
+            <Button asChild variant="outline" size="sm">
+              <Link to="/my-documents"><FolderOpen className="h-4 w-4 mr-2" />Manage all documents</Link>
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <Card>
         <CardHeader className="pb-2">
@@ -187,19 +213,19 @@ export default function MyProfile() {
             <p className="text-sm font-medium">Upload copies (PDF or photo)</p>
             <div className="space-y-2">
               <p className="text-xs text-muted-foreground">National ID</p>
-              <ProfileDocUpload docType="ID_COPY" title="National ID copy" />
+              <ProfileDocUpload docType="ID_COPY" title="National ID copy" onUploaded={reload} />
             </div>
             <div className="space-y-2">
               <p className="text-xs text-muted-foreground">KRA PIN certificate</p>
-              <ProfileDocUpload docType="KRA_PIN" title="KRA PIN document" />
+              <ProfileDocUpload docType="KRA_PIN" title="KRA PIN document" onUploaded={reload} />
             </div>
             <div className="space-y-2">
               <p className="text-xs text-muted-foreground">NSSF card / statement</p>
-              <ProfileDocUpload docType="NSSF" title="NSSF document" />
+              <ProfileDocUpload docType="NSSF" title="NSSF document" onUploaded={reload} />
             </div>
             <div className="space-y-2">
               <p className="text-xs text-muted-foreground">SHIF card / statement</p>
-              <ProfileDocUpload docType="SHIF" title="SHIF document" />
+              <ProfileDocUpload docType="SHIF" title="SHIF document" onUploaded={reload} />
             </div>
           </div>
         </CardContent>
@@ -218,7 +244,7 @@ export default function MyProfile() {
           </div>
           <div className="space-y-2 rounded-md border p-3">
             <p className="text-sm font-medium">Upload license</p>
-            <ProfileDocUpload docType="LICENSE" title="Practicing license" label="Upload license file" />
+            <ProfileDocUpload docType="LICENSE" title="Practicing license" label="Upload license file" onUploaded={reload} />
           </div>
         </CardContent>
       </Card>
@@ -237,7 +263,7 @@ export default function MyProfile() {
           </div>
           <div className="space-y-2 rounded-md border p-3">
             <p className="text-sm font-medium">Upload bank proof (statement or card photo)</p>
-            <ProfileDocUpload docType="BANK_PROOF" title="Bank account proof" label="Upload bank proof" />
+            <ProfileDocUpload docType="BANK_PROOF" title="Bank account proof" label="Upload bank proof" onUploaded={reload} />
           </div>
         </CardContent>
       </Card>

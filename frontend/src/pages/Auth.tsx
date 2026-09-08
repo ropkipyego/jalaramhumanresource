@@ -20,7 +20,7 @@ const loginSchema = z.object({
 
 export default function Auth() {
   const navigate = useNavigate();
-  const { user, signIn } = useAuth();
+  const { user, profile, loading, signIn } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [mode, setMode] = useState<'login' | 'forgot'>('login');
@@ -28,8 +28,14 @@ export default function Auth() {
   const [password, setPassword] = useState('');
 
   useEffect(() => {
-    if (user) navigate('/dashboard', { replace: true });
-  }, [user, navigate]);
+    if (loading) return;
+    if (!user) return;
+    if ((profile as any)?.must_change_password) {
+      navigate('/change-password', { replace: true });
+      return;
+    }
+    navigate('/dashboard', { replace: true });
+  }, [user, profile, loading, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

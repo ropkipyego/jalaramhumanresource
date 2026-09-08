@@ -5,10 +5,11 @@ import { DatabaseService } from '../database/database.service';
 import { JwtUserPayload } from '../core/auth/auth.decorators';
 
 const DEFAULT_EMAIL_DOMAIN = process.env.STAFF_EMAIL_DOMAIN ?? 'jalaram.co.ke';
+const DEFAULT_STAFF_PASSWORD = 'ChangeMe123!';
 
 interface InviteDto {
   email: string;
-  password: string;
+  password?: string;
   fullName: string;
   staffId: string;
   role: string;
@@ -28,6 +29,7 @@ export class StaffService {
 
   async invite(dto: InviteDto, caller: JwtUserPayload) {
     const email = dto.email.toLowerCase().trim();
+    const password = dto.password?.trim() || DEFAULT_STAFF_PASSWORD;
     const domain = DEFAULT_EMAIL_DOMAIN.toLowerCase();
     if (!email.endsWith(`@${domain}`)) {
       throw new BadRequestException(`Email must use @${domain}`);
@@ -51,9 +53,9 @@ export class StaffService {
     const userId = randomUUID();
 
     if (await this.hasAuthSchema()) {
-      await this.inviteWithAuthSchema(userId, email, dto);
+      await this.inviteWithAuthSchema(userId, email, { ...dto, password });
     } else {
-      await this.inviteWithHrCredentials(userId, email, dto);
+      await this.inviteWithHrCredentials(userId, email, { ...dto, password });
     }
 
     if (dto.departmentId) {
@@ -67,6 +69,7 @@ export class StaffService {
   }
 
   private async inviteWithAuthSchema(userId: string, email: string, dto: InviteDto) {
+    const password = dto.password?.trim() || DEFAULT_STAFF_PASSWORD;
     const meta = JSON.stringify({ full_name: dto.fullName, staff_id: dto.staffId.trim() });
 
     await this.db.query(
@@ -80,7 +83,7 @@ export class StaffService {
         '{"provider":"email","providers":["email"]}'::jsonb, $4::jsonb, now(), now()
       )
       `,
-      [userId, email, dto.password, meta],
+      [userId, email, password, meta],
     );
 
     try {
@@ -100,7 +103,8 @@ export class StaffService {
 
   private async inviteWithHrCredentials(userId: string, email: string, dto: InviteDto) {
     await this.upsertProfileAndRole(userId, email, dto);
-    const hash = await bcrypt.hash(dto.password, 12);
+    const password = dto.password?.trim() || DEFAULT_STAFF_PASSWORD;
+    const hash = await bcrypt.hash(password, 12);
     await this.db.query(
       `
       INSERT INTO hr.app_credentials (user_id, password_hash, updated_at)
@@ -116,7 +120,11 @@ export class StaffService {
       `
       INSERT INTO public.profiles (id, email, full_name, staff_id, must_change_password, is_active, hr_status)
       VALUES ($1::uuid, $2, $3, $4, true, true, 'ACTIVE')
-      ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email, full_name = EXCLUDED.full_name, staff_id = EXCLUDED.staff_id
+      ON CONFLICT (id) DO UPDATE SET
+        email = EXCLUDED.email,
+        full_name = EXCLUDED.full_name,
+        staff_id = EXCLUDED.staff_id,
+        must_change_password = true
       `,
       [userId, email, dto.fullName, dto.staffId.trim()],
     );
