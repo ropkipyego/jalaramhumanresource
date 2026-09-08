@@ -3,6 +3,11 @@ import { Link, useSearchParams, Navigate } from "react-router-dom";
 import { format } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRole } from "@/hooks/useRole";
+import {
+  uploadEmployeeDocument,
+  downloadEmployeeDocument,
+  deleteEmployeeDocumentFile,
+} from "@/lib/storage";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,8 +17,18 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Download, FileUp, FolderOpen, Loader2, Plus, User } from "lucide-react";
+import { Download, FileUp, FolderOpen, Loader2, Plus, Trash2, User } from "lucide-react";
 
 const db = supabase as any;
 
@@ -49,6 +64,8 @@ export default function EmployeeDocuments() {
   const adminViewId = params.get("employeeId");
   const denied = !!(adminViewId && !canManageStaffLogins);
   const employeeId = denied ? "" : (adminViewId || user?.id || "");
+  const isOwnDocuments = !adminViewId || adminViewId === user?.id;
+  const canDelete = isOwnDocuments || canManageStaffLogins;
   const [docs, setDocs] = useState<Doc[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -56,6 +73,8 @@ export default function EmployeeDocuments() {
   const [title, setTitle] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Doc | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const load = async () => {
     if (!employeeId) return;
@@ -75,45 +94,76 @@ export default function EmployeeDocuments() {
     if (!file || !employeeId) return toast.error("Select a file");
     if (!title.trim()) return toast.error("Title required");
     setUploading(true);
-    const path = `${employeeId}/${Date.now()}-${file.name.replace(/[^\w.\-]+/g, "_")}`;
-    const { error: upErr } = await supabase.storage.from("employee-documents").upload(path, file);
-    if (upErr) { setUploading(false); return toast.error(upErr.message); }
+    try {
+      const path = await uploadEmployeeDocument(file, employeeId);
 
-    let { error } = await db.from("employee_documents").insert({
-      employee_id: employeeId,
-      doc_type: kind,
-      title: title.trim(),
-      file_url: path,
-      file_name: file.name,
-      uploaded_by: user!.id,
-    });
-
-    if (error && /column|doc_type|file_url/i.test(error.message)) {
-      ({ error } = await db.from("employee_documents").insert({
+      let { error } = await db.from("employee_documents").insert({
         employee_id: employeeId,
-        kind: ["CV", "CERTIFICATE", "LICENSE", "CONTRACT", "PASSPORT", "ID_COPY", "OTHER"].includes(kind)
-          ? kind
-          : "OTHER",
+        doc_type: kind,
         title: title.trim(),
-        file_path: path,
+        file_url: path,
         file_name: file.name,
-        mime_type: file.type || null,
-        file_size: file.size,
         uploaded_by: user!.id,
-      }));
-    }
+      });
 
-    setUploading(false);
-    if (error) return toast.error(error.message);
-    toast.success("Document uploaded");
-    setOpen(false); setTitle(""); setFile(null); setKind("ID_COPY"); load();
+      if (error && /column|doc_type|file_url/i.test(error.message)) {
+        ({ error } = await db.from("employee_documents").insert({
+          employee_id: employeeId,
+          kind: ["CV", "CERTIFICATE", "LICENSE", "CONTRACT", "PASSPORT", "ID_COPY", "OTHER"].includes(kind)
+            ? kind
+            : "OTHER",
+          title: title.trim(),
+          file_path: path,
+          file_name: file.name,
+          mime_type: file.type || null,
+          file_size: file.size,
+          uploaded_by: user!.id,
+        }));
+      }
+
+      if (error) return toast.error(error.message);
+      toast.success("Document uploaded");
+      setOpen(false);
+      setTitle("");
+      setFile(null);
+      setKind("ID_COPY");
+      load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setUploading(false);
+    }
   };
 
   const download = async (doc: Doc) => {
     if (!doc.file_path) return toast.error("Missing file path");
-    const { data, error } = await supabase.storage.from("employee-documents").createSignedUrl(doc.file_path, 60);
-    if (error || !data?.signedUrl) return toast.error(error?.message || "Download failed");
-    window.open(data.signedUrl, "_blank");
+    try {
+      await downloadEmployeeDocument(doc.file_path);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Download failed");
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    if (!deleteTarget.file_path) {
+      toast.error("Missing file path");
+      setDeleteTarget(null);
+      return;
+    }
+    setDeleting(true);
+    try {
+      await deleteEmployeeDocumentFile(deleteTarget.file_path);
+      const { error } = await db.from("employee_documents").delete().eq("id", deleteTarget.id);
+      if (error) throw new Error(error.message);
+      toast.success("Document deleted");
+      setDeleteTarget(null);
+      load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Delete failed");
+    } finally {
+      setDeleting(false);
+    }
   };
 
   return (
@@ -181,7 +231,7 @@ export default function EmployeeDocuments() {
                   <TableHead>Type</TableHead>
                   <TableHead>File</TableHead>
                   <TableHead>Uploaded</TableHead>
-                  <TableHead className="text-right">Download</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -193,10 +243,21 @@ export default function EmployeeDocuments() {
                     <TableCell><Badge variant="outline">{d.kind}</Badge></TableCell>
                     <TableCell className="text-sm">{d.file_name}</TableCell>
                     <TableCell>{format(new Date(d.created_at), "dd MMM yyyy")}</TableCell>
-                    <TableCell className="text-right">
-                      <Button size="sm" variant="ghost" onClick={() => download(d)}>
+                    <TableCell className="text-right space-x-1">
+                      <Button size="sm" variant="ghost" onClick={() => download(d)} title="Download">
                         <Download className="h-4 w-4" />
                       </Button>
+                      {canDelete && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => setDeleteTarget(d)}
+                          title="Delete"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -205,6 +266,32 @@ export default function EmployeeDocuments() {
           )}
         </CardContent>
       </Card>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete document?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes <strong>{deleteTarget?.title}</strong> ({deleteTarget?.file_name}) permanently.
+              You cannot undo this.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                confirmDelete();
+              }}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

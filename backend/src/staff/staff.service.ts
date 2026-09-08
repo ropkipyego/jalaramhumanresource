@@ -1,9 +1,10 @@
 import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import { randomUUID } from 'crypto';
+import * as bcrypt from 'bcrypt';
 import { DatabaseService } from '../database/database.service';
 import { JwtUserPayload } from '../core/auth/auth.decorators';
 
-const EMAIL_DOMAIN = 'jalaram.co.ke';
+const DEFAULT_EMAIL_DOMAIN = process.env.STAFF_EMAIL_DOMAIN ?? 'jalaram.co.ke';
 
 interface InviteDto {
   email: string;
@@ -18,10 +19,18 @@ interface InviteDto {
 export class StaffService {
   constructor(private readonly db: DatabaseService) {}
 
+  private async hasAuthSchema(): Promise<boolean> {
+    const rows = await this.db.query<{ ok: number }>(
+      `SELECT 1 AS ok FROM information_schema.schemata WHERE schema_name = 'auth' LIMIT 1`,
+    );
+    return rows.length > 0;
+  }
+
   async invite(dto: InviteDto, caller: JwtUserPayload) {
     const email = dto.email.toLowerCase().trim();
-    if (!email.endsWith(`@${EMAIL_DOMAIN}`)) {
-      throw new BadRequestException(`Email must use @${EMAIL_DOMAIN}`);
+    const domain = DEFAULT_EMAIL_DOMAIN.toLowerCase();
+    if (!email.endsWith(`@${domain}`)) {
+      throw new BadRequestException(`Email must use @${domain}`);
     }
 
     const callerRoles = caller.roles ?? [];
@@ -40,6 +49,24 @@ export class StaffService {
     if (dup[0]) throw new BadRequestException('Email or Staff ID already in use');
 
     const userId = randomUUID();
+
+    if (await this.hasAuthSchema()) {
+      await this.inviteWithAuthSchema(userId, email, dto);
+    } else {
+      await this.inviteWithHrCredentials(userId, email, dto);
+    }
+
+    if (dto.departmentId) {
+      await this.db.query(
+        `INSERT INTO public.employee_departments (employee_id, department_id) VALUES ($1::uuid, $2::uuid) ON CONFLICT DO NOTHING`,
+        [userId, dto.departmentId],
+      );
+    }
+
+    return { success: true, userId, email };
+  }
+
+  private async inviteWithAuthSchema(userId: string, email: string, dto: InviteDto) {
     const meta = JSON.stringify({ full_name: dto.fullName, staff_id: dto.staffId.trim() });
 
     await this.db.query(
@@ -68,6 +95,23 @@ export class StaffService {
       /* identities table shape varies by dump version */
     }
 
+    await this.upsertProfileAndRole(userId, email, dto);
+  }
+
+  private async inviteWithHrCredentials(userId: string, email: string, dto: InviteDto) {
+    await this.upsertProfileAndRole(userId, email, dto);
+    const hash = await bcrypt.hash(dto.password, 12);
+    await this.db.query(
+      `
+      INSERT INTO hr.app_credentials (user_id, password_hash, updated_at)
+      VALUES ($1::uuid, $2, now())
+      ON CONFLICT (user_id) DO UPDATE SET password_hash = EXCLUDED.password_hash, updated_at = now()
+      `,
+      [userId, hash],
+    );
+  }
+
+  private async upsertProfileAndRole(userId: string, email: string, dto: InviteDto) {
     await this.db.query(
       `
       INSERT INTO public.profiles (id, email, full_name, staff_id, must_change_password, is_active, hr_status)
@@ -81,14 +125,5 @@ export class StaffService {
       `INSERT INTO public.user_roles (user_id, role) VALUES ($1::uuid, $2::public.app_role) ON CONFLICT DO NOTHING`,
       [userId, dto.role],
     );
-
-    if (dto.departmentId) {
-      await this.db.query(
-        `INSERT INTO public.employee_departments (employee_id, department_id) VALUES ($1::uuid, $2::uuid) ON CONFLICT DO NOTHING`,
-        [userId, dto.departmentId],
-      );
-    }
-
-    return { success: true, userId, email };
   }
 }

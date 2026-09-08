@@ -1,6 +1,7 @@
 import {
   Injectable,
   UnauthorizedException,
+  BadRequestException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { createHash, randomBytes } from 'crypto';
@@ -92,7 +93,8 @@ export class AuthService {
     let user: LegacyUserRow | null = null;
     if (await this.hasAuthSchema()) {
       user = await this.verifyLegacyPassword(email, password);
-    } else {
+    }
+    if (!user) {
       user = await this.verifyAppCredentials(email, password);
     }
 
@@ -226,6 +228,62 @@ export class AuthService {
       `UPDATE hr.refresh_tokens SET revoked_at = now() WHERE token_hash = $1`,
       [hash],
     );
+    return { ok: true };
+  }
+
+  async changePassword(userId: string, newPassword: string, currentPassword?: string) {
+    if (newPassword.length < 8) {
+      throw new BadRequestException('Password must be at least 8 characters');
+    }
+    if (!/[A-Z]/.test(newPassword) || !/[a-z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
+      throw new BadRequestException('Use upper, lower, and a number');
+    }
+
+    const rows = await this.db.query<{
+      email: string;
+      must_change_password: boolean | null;
+    }>(
+      `SELECT email, must_change_password FROM public.profiles WHERE id = $1::uuid`,
+      [userId],
+    );
+    const profile = rows[0];
+    if (!profile) throw new UnauthorizedException('User not found');
+
+    const mustChange = profile.must_change_password === true;
+    if (!mustChange) {
+      if (!currentPassword) {
+        throw new BadRequestException('Current password is required');
+      }
+      const verified = await this.verifyAppCredentials(profile.email, currentPassword);
+      if (!verified) {
+        throw new UnauthorizedException('Current password is incorrect');
+      }
+    }
+
+    const hash = await bcrypt.hash(newPassword, 12);
+    await this.db.query(
+      `
+      INSERT INTO hr.app_credentials (user_id, password_hash, updated_at)
+      VALUES ($1::uuid, $2, now())
+      ON CONFLICT (user_id) DO UPDATE
+        SET password_hash = EXCLUDED.password_hash,
+            updated_at = now()
+      `,
+      [userId, hash],
+    );
+
+    if (await this.hasAuthSchema()) {
+      await this.db.query(
+        `UPDATE auth.users SET encrypted_password = crypt($2, gen_salt('bf')) WHERE id = $1::uuid`,
+        [userId, newPassword],
+      );
+    }
+
+    await this.db.query(
+      `UPDATE public.profiles SET must_change_password = false WHERE id = $1::uuid`,
+      [userId],
+    );
+
     return { ok: true };
   }
 }

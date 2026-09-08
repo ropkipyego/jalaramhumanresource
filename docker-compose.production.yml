@@ -1,8 +1,7 @@
-# Production / Contabo VPS — only nginx exposed on localhost.
-# Deploy: FRESH_DB=1 bash scripts/deploy-contabo.sh
+# Production compose — same as docker-compose.prod.yml (preserves existing volume).
+# Use: docker compose -f docker-compose.yml -f docker-compose.production.yml up -d --build
 #
-# Co-host with Afya-Sasa (EMR on 8080, HR on 8081):
-#   NGINX_HOST_PORT=8081 in .env
+# NEVER use FRESH_DB=1 on production.
 
 services:
   postgres:

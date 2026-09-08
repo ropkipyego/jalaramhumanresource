@@ -10,8 +10,6 @@ import { Loader2 } from "lucide-react";
 
 import Auth from "@/pages/Auth";
 import ChangePassword from "@/pages/ChangePassword";
-import MfaSetup from "@/pages/MfaSetup";
-import MfaVerify from "@/pages/MfaVerify";
 import NotFound from "./pages/NotFound";
 
 const Onboarding = lazy(() => import("@/pages/Onboarding"));
@@ -80,8 +78,6 @@ const App = () => (
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/onboarding" element={<Onboarding />} />
                 <Route path="/change-password" element={<ChangePassword />} />
-                <Route path="/mfa-setup" element={<MfaSetup />} />
-                <Route path="/mfa-verify" element={<MfaVerify />} />
                 <Route path="/" element={<AppLayout />}>
                   <Route index element={<Navigate to="/dashboard" replace />} />
                   <Route path="dashboard" element={<Dashboard />} />

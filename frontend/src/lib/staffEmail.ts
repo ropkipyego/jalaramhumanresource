@@ -1,5 +1,10 @@
-/** Official staff email domain for Jalaram Hospital */
-export const STAFF_EMAIL_DOMAIN = "jalaram.co.ke";
+/** Official staff email domain for Jalaram Hospital (invite, bulk upload, validation) */
+export const STAFF_EMAIL_DOMAIN =
+  import.meta.env.VITE_STAFF_EMAIL_DOMAIN?.trim() || "jalaram.co.ke";
+
+/** Super admin login email (platform operator — separate from staff domain) */
+export const SUPER_ADMIN_EMAIL =
+  import.meta.env.VITE_SUPER_ADMIN_EMAIL?.trim() || "admin@humasync.solutions";
 
 /** Build a staff login email from Staff ID when none is provided */
 export function staffEmailFromId(staffId: string): string {
@@ -11,7 +16,7 @@ export function staffEmailFromId(staffId: string): string {
   return `${slug || "staff"}@${STAFF_EMAIL_DOMAIN}`;
 }
 
-/** Normalize and validate that email uses @jalaram.co.ke */
+/** Normalize and validate that email uses the staff domain */
 export function normalizeStaffEmail(raw: string): { email: string; error?: string } {
   const email = (raw || "").trim().toLowerCase();
   if (!email) return { email: "", error: "Email is required" };
@@ -26,7 +31,7 @@ export function normalizeStaffEmail(raw: string): { email: string; error?: strin
   return { email };
 }
 
-/** Allow blank → auto-generate from staff ID; otherwise must be @jalaram.co.ke */
+/** Allow blank → auto-generate from staff ID; otherwise must use staff domain */
 export function resolveStaffEmail(rawEmail: string, staffId: string): { email: string; error?: string } {
   const trimmed = (rawEmail || "").trim().toLowerCase();
   if (!trimmed || !trimmed.includes("@")) {
@@ -34,4 +39,13 @@ export function resolveStaffEmail(rawEmail: string, staffId: string): { email: s
     return { email: staffEmailFromId(staffId) };
   }
   return normalizeStaffEmail(trimmed);
+}
+
+/** Login accepts super-admin domain or staff domain */
+export function isAllowedLoginEmail(email: string): boolean {
+  const normalized = email.trim().toLowerCase();
+  const domain = normalized.split("@")[1];
+  if (!domain) return false;
+  if (normalized === SUPER_ADMIN_EMAIL.toLowerCase()) return true;
+  return domain === STAFF_EMAIL_DOMAIN;
 }

@@ -17,3 +17,13 @@ export class RefreshDto {
   @IsString()
   refreshToken!: string;
 }
+
+export class ChangePasswordDto {
+  @IsString()
+  @MinLength(8)
+  newPassword!: string;
+
+  @IsOptional()
+  @IsString()
+  currentPassword?: string;
+}

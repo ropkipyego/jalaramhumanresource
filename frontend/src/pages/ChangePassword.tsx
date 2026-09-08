@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { apiRequest } from "@/lib/api-client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -41,19 +42,22 @@ export default function ChangePassword() {
       return;
     }
     setBusy(true);
-    const { error } = await supabase.auth.updateUser({ password });
-    if (error) {
+    try {
+      await apiRequest("/auth/change-password", {
+        method: "POST",
+        body: JSON.stringify({ newPassword: password }),
+      });
+      if (user?.id) {
+        await (supabase as any).rpc("set_must_change_password", { _user_id: user.id, _value: false });
+      }
+      await refreshProfile?.();
+      toast.success("Password updated");
+      navigate("/dashboard", { replace: true });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not update password");
+    } finally {
       setBusy(false);
-      toast.error(error.message);
-      return;
     }
-    if (user?.id) {
-      await (supabase as any).rpc("set_must_change_password", { _user_id: user.id, _value: false });
-    }
-    await refreshProfile?.();
-    setBusy(false);
-    toast.success("Password updated");
-    navigate("/dashboard", { replace: true });
   };
 
   if (loading || !user) {

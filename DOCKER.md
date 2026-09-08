@@ -1,94 +1,60 @@
 # Self-hosted Jalaram HR (Docker)
 
-Run everything on your own server — **PostgreSQL**, **NestJS API**, **PostgREST** (keeps the React app talking to your existing tables), **Redis**, **MinIO**, **Nginx**.
+Run everything on your own server — **PostgreSQL**, **NestJS API**, **PostgREST**, **Redis**, **MinIO**, **Nginx**. No Supabase cloud.
 
-Pattern matches [Afya-Sasa](../Afya-Sasa) on your Desktop: `backend/` + `frontend/` + `docker-compose.yml`.
+**Start here:** [docs/local-development.md](docs/local-development.md) (offline local first)  
+**Then production:** [docs/go-live-humasync.md](docs/go-live-humasync.md)
 
 ## Architecture
 
 ```
 Browser → Nginx :8080
             ├── /           → React (frontend/)
-            ├── /api/v1/    → NestJS auth, audit, notifications
-            └── /rest/v1/   → PostgREST → same Postgres (profiles, rota, payroll…)
+            ├── /api/v1/    → NestJS auth, staff invite, storage (MinIO)
+            └── /rest/v1/   → PostgREST → PostgreSQL
 ```
 
-**Login:** NestJS validates passwords in `auth.users` (from Supabase dump or fresh seed).  
-**Data:** All `public.*` tables (rota, attendance, payroll, profiles, user_roles…).
+**Login:** NestJS + `hr.app_credentials` (bcrypt)  
+**Super admin:** `admin@humasync.solutions`  
+**Staff:** `@jalaram.co.ke`
 
 ---
 
-## Quick start
-
-### 1. Copy environment file
+## Quick start (local offline)
 
 ```bash
 cp .env.example .env
-# Edit passwords and JWT_ACCESS_SECRET
-```
-
-### 2. Start stack
-
-```bash
-docker compose up -d --build
+bash scripts/local-dev.sh
 ```
 
 Open **http://localhost:8080**
 
-### 3. Load your existing database
+---
 
-Export from Supabase (Dashboard → Database → backup, or `pg_dump`):
-
-```bash
-pg_dump "postgresql://postgres:YOUR_PASSWORD@db.sfziuvxfeyfhkzmcxpou.supabase.co:5432/postgres" \
-  --schema=public --schema=auth --no-owner --no-acl -f supabase-export.sql
-
-bash scripts/db/import-from-supabase.sh supabase-export.sql
-```
-
-Sign in with the **same email/password** staff already use.
-
-### Fresh database (one SUPER_ADMIN, no Supabase data)
-
-Wipes the Postgres volume, applies all migrations, and creates **one** super admin.
+## Fresh local database (wipes local volume only)
 
 ```bash
-cp .env.example .env
-# Set POSTGRES_PASSWORD, JWT_ACCESS_SECRET, and optionally:
-# SUPER_ADMIN_EMAIL, SUPER_ADMIN_PASSWORD, SUPER_ADMIN_NAME, SUPER_ADMIN_STAFF_ID
-
-bash scripts/db/fresh-install.sh
-# or: FRESH_DB=1 bash scripts/go-live.sh
+bash scripts/local-dev.sh fresh
 ```
 
-Default login after fresh install:
+Default super admin after fresh install:
 
 | Field | Default |
 |-------|---------|
-| Email | `admin@jalaram.co.ke` |
-| Password | `JalaramAdmin2026!` |
+| Email | `admin@humasync.solutions` |
+| Password | `SUPER_ADMIN_PASSWORD` in `.env` (default `LocalAdmin2026!` in `.env.example`) |
 
-Change `SUPER_ADMIN_*` in `.env` before running if you want different credentials.
+---
 
-### Fresh schema only (no user seed)
+## Legacy: import Supabase dump (optional)
 
-```bash
-docker compose up -d postgres
-bash scripts/db/apply-migrations.sh
-docker compose up -d --build
-```
-
-Then seed manually:
+If migrating old Supabase data:
 
 ```bash
-export ADMIN_EMAIL='admin@jalaram.co.ke'
-export ADMIN_PASSWORD='YourSecurePassword'
-export ADMIN_NAME='Super Admin'
-export STAFF_ID='SA-001'
-envsubst '${ADMIN_EMAIL} ${ADMIN_PASSWORD} ${ADMIN_NAME} ${STAFF_ID}' \
-  < scripts/db/seed-superadmin.sql \
-  | docker exec -i $(docker compose ps -q postgres) psql -U jalaramhr -d jalaramhr
+bash scripts/db/import-from-supabase.sh data/supabase-export.sql
 ```
+
+Otherwise use `local-dev.sh` — no cloud required.
 
 ---
 
@@ -103,7 +69,6 @@ POSTGRES_HOST_PORT=5434
 REDIS_HOST_PORT=6381
 MINIO_API_HOST_PORT=9002
 MINIO_CONSOLE_HOST_PORT=9003
-S3_PUBLIC_ENDPOINT=https://hr.yourdomain.com/minio
 VITE_SUPABASE_URL=https://hr.yourdomain.com
 
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build

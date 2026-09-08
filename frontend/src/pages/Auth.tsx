@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PasswordInput } from '@/components/ui/password-input';
-import { Loader2, Mail, Lock, KeyRound } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Loader2, Mail, Lock } from 'lucide-react';
 import { BrandLogo } from '@/components/BrandLogo';
 import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
-import { STAFF_EMAIL_DOMAIN } from '@/lib/staffEmail';
+import { STAFF_EMAIL_DOMAIN, isAllowedLoginEmail } from '@/lib/staffEmail';
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -26,7 +26,6 @@ export default function Auth() {
   const [mode, setMode] = useState<'login' | 'forgot'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [resetSent, setResetSent] = useState(false);
 
   useEffect(() => {
     if (user) navigate('/dashboard', { replace: true });
@@ -50,18 +49,10 @@ export default function Auth() {
         });
         return;
       }
-      if (!normalized.endsWith(`@${STAFF_EMAIL_DOMAIN}`)) {
+      if (!isAllowedLoginEmail(normalized)) {
         toast({
-          title: 'Hospital email required',
-          description: `Sign in with your @${STAFF_EMAIL_DOMAIN} address.`,
-          variant: 'destructive',
-        });
-        return;
-      }
-      if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY) {
-        toast({
-          title: 'App not connected to Supabase',
-          description: 'Missing VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY on this deploy (set them in Vercel → Environment Variables).',
+          title: 'Email not allowed',
+          description: `Use your @${STAFF_EMAIL_DOMAIN} staff address, or the platform admin login.`,
           variant: 'destructive',
         });
         return;
@@ -70,8 +61,8 @@ export default function Auth() {
       if (error) {
         toast({
           title: 'Login Failed',
-          description: error.message === 'Invalid login credentials'
-            ? 'Invalid email or password. Ask HR if you need a password reset.'
+          description: error.message.includes('Invalid')
+            ? 'Invalid email or password. Ask HR or your system administrator to reset your password.'
             : error.message,
           variant: 'destructive',
         });
@@ -79,29 +70,6 @@ export default function Auth() {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleForgot = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const normalized = email.trim().toLowerCase();
-    if (!normalized.includes('@')) {
-      toast({ title: 'Enter your email', variant: 'destructive' });
-      return;
-    }
-    setIsLoading(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(normalized, {
-      redirectTo: `${window.location.origin}/change-password`,
-    });
-    setIsLoading(false);
-    if (error) {
-      toast({ title: 'Could not send reset email', description: error.message, variant: 'destructive' });
-      return;
-    }
-    setResetSent(true);
-    toast({
-      title: 'Check your email',
-      description: 'If that address has an account, a reset link was sent. SMTP must be configured in Supabase Auth.',
-    });
   };
 
   return (
@@ -115,8 +83,8 @@ export default function Auth() {
             <CardTitle className="text-2xl font-bold">Jalaram Hospital HR</CardTitle>
             <CardDescription className="mt-1">
               {mode === 'login'
-                ? `Sign in with your @${STAFF_EMAIL_DOMAIN} account`
-                : 'Reset your password'}
+                ? `Sign in with your hospital email (@${STAFF_EMAIL_DOMAIN})`
+                : 'Password reset'}
             </CardDescription>
           </div>
         </CardHeader>
@@ -164,37 +132,25 @@ export default function Auth() {
               <button
                 type="button"
                 className="w-full text-sm text-primary hover:underline"
-                onClick={() => { setMode('forgot'); setResetSent(false); }}
+                onClick={() => setMode('forgot')}
               >
                 Forgot password?
               </button>
             </form>
           ) : (
-            <form onSubmit={handleForgot} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="reset-email">Email</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="reset-email"
-                    type="email"
-                    placeholder={`you@${STAFF_EMAIL_DOMAIN}`}
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="pl-10"
-                    required
-                  />
-                </div>
-              </div>
-              {resetSent && (
-                <p className="text-sm text-muted-foreground flex items-start gap-2">
-                  <KeyRound className="h-4 w-4 mt-0.5 shrink-0" />
-                  Reset link sent (if the account exists). Also ask HR to set password to ChangeMe123! from Go-Live Credentials.
-                </p>
-              )}
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Sending...</>) : 'Send reset link'}
-              </Button>
+            <div className="space-y-4">
+              <Alert>
+                <AlertTitle>Self-hosted password reset</AlertTitle>
+                <AlertDescription className="text-sm space-y-2">
+                  <p>
+                    Passwords are managed on this server — not via Supabase or any cloud auth service.
+                  </p>
+                  <p>
+                    Contact your HR administrator or system administrator to reset your password.
+                    They can run the safe reset script on the server for your email address.
+                  </p>
+                </AlertDescription>
+              </Alert>
               <button
                 type="button"
                 className="w-full text-sm text-muted-foreground hover:underline"
@@ -202,7 +158,7 @@ export default function Auth() {
               >
                 Back to sign in
               </button>
-            </form>
+            </div>
           )}
           <p className="text-center text-xs text-muted-foreground">
             Accounts are created by HR only. Self-registration is disabled.

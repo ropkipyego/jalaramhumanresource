@@ -3,6 +3,9 @@
 **HR URL:** https://hr.humasync.solutions  
 **VPS IP:** `102.68.79.109`
 
+> **Prerequisite:** Run and test locally first — [local-development.md](local-development.md).  
+> Do not deploy to production until login, rota, and uploads work on http://localhost:8080.
+
 ---
 
 ## Step 1 — DNS (do this first)
@@ -70,13 +73,30 @@ Set in `.env`:
 - `POSTGRES_PASSWORD`
 - `JWT_ACCESS_SECRET`
 - `MINIO_ROOT_PASSWORD`
-- `SUPER_ADMIN_PASSWORD` (password you will use to log in)
+- `SUPER_ADMIN_EMAIL=admin@humasync.solutions` (platform admin — separate from staff `@jalaram.co.ke`)
+- `STAFF_EMAIL_DOMAIN=jalaram.co.ke`
+- `VITE_STAFF_EMAIL_DOMAIN=jalaram.co.ke`
 
 Deploy:
 
 ```bash
-chmod +x scripts/deploy-contabo.sh ops/*.sh
-FRESH_DB=1 bash scripts/deploy-contabo.sh
+cd /opt/jalaramhr
+git pull
+bash scripts/deploy-contabo.sh
+```
+
+First-time super admin (profile + role + password):
+
+```bash
+ADMIN_EMAIL=admin@humasync.solutions NEW_PASSWORD='YourNewSecurePassword' \
+  bash scripts/db/ensure-superadmin.sh
+```
+
+Password reset only (if profile already exists):
+
+```bash
+ADMIN_EMAIL=admin@humasync.solutions NEW_PASSWORD='YourNewSecurePassword' \
+  bash scripts/db/reset-admin-password.sh
 ```
 
 Internal check:
@@ -110,8 +130,8 @@ curl -fsS https://hr.humasync.solutions/api/v1/health
 | | |
 |--|--|
 | **URL** | https://hr.humasync.solutions |
-| **Email** | `admin@humasync.solutions` (from `.env`) |
-| **Password** | `SUPER_ADMIN_PASSWORD` from `.env` |
+| **Email** | `admin@humasync.solutions` |
+| **Password** | Set with `reset-admin-password.sh` (see Step 3) — not stored in git or `.env` |
 
 Then: **Go-Live Checklist** → Organization → Departments → Invite Staff → Rota.
 

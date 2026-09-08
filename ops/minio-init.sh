@@ -8,4 +8,9 @@ done
 
 mc mb --ignore-existing "local/${S3_BUCKET}"
 mc anonymous set none "local/${S3_BUCKET}"
-echo "MinIO bucket ${S3_BUCKET} ready (private)."
+
+# HR employee documents (profile uploads, document library)
+mc mb --ignore-existing "local/employee-documents"
+mc anonymous set none "local/employee-documents"
+
+echo "MinIO buckets ready (private): ${S3_BUCKET}, employee-documents"

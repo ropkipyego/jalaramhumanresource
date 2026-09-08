@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { uploadEmployeeDocument } from "@/lib/storage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -25,43 +26,41 @@ export function ProfileDocUpload({ docType, title, label = "Upload supporting fi
   const onPick = async (file: File | null) => {
     if (!file || !user) return;
     setBusy(true);
-    const path = `${user.id}/${Date.now()}-${file.name.replace(/[^\w.\-]+/g, "_")}`;
-    const { error: upErr } = await supabase.storage.from("employee-documents").upload(path, file);
-    if (upErr) {
-      setBusy(false);
-      toast.error(upErr.message);
-      return;
-    }
+    try {
+      const path = await uploadEmployeeDocument(file, user.id);
 
-    // Prefer live schema (doc_type / file_url); fall back to kind / file_path if needed
-    let { error } = await db.from("employee_documents").insert({
-      employee_id: user.id,
-      doc_type: docType,
-      title,
-      file_url: path,
-      file_name: file.name,
-      uploaded_by: user.id,
-    });
-
-    if (error && /column|doc_type|file_url/i.test(error.message)) {
-      ({ error } = await db.from("employee_documents").insert({
+      let { error } = await db.from("employee_documents").insert({
         employee_id: user.id,
-        kind: docType === "LICENSE" ? "LICENSE" : docType === "ID_COPY" ? "ID_COPY" : "OTHER",
+        doc_type: docType,
         title,
-        file_path: path,
+        file_url: path,
         file_name: file.name,
-        mime_type: file.type || null,
-        file_size: file.size,
         uploaded_by: user.id,
-      }));
-    }
+      });
 
-    setBusy(false);
-    if (error) toast.error(error.message);
-    else {
-      toast.success(`${title} uploaded`);
-      onUploaded?.();
-      if (inputRef.current) inputRef.current.value = "";
+      if (error && /column|doc_type|file_url/i.test(error.message)) {
+        ({ error } = await db.from("employee_documents").insert({
+          employee_id: user.id,
+          kind: docType === "LICENSE" ? "LICENSE" : docType === "ID_COPY" ? "ID_COPY" : "OTHER",
+          title,
+          file_path: path,
+          file_name: file.name,
+          mime_type: file.type || null,
+          file_size: file.size,
+          uploaded_by: user.id,
+        }));
+      }
+
+      if (error) toast.error(error.message);
+      else {
+        toast.success(`${title} uploaded`);
+        onUploaded?.();
+        if (inputRef.current) inputRef.current.value = "";
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setBusy(false);
     }
   };
 

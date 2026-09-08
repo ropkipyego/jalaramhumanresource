@@ -13,18 +13,17 @@ type Item = { title: string; detail: string; href?: string; owner: string };
 
 const DEPLOY: Item[] = [
   {
-    title: "Run go-live script",
-    detail: "From repo root: bash scripts/go-live.sh — starts Docker, imports data/supabase-export.sql if present, else applies migrations.",
+    title: "Deploy production stack",
+    detail: "On VPS: git pull && bash scripts/deploy-contabo.sh — preserves database volume.",
     owner: "Dev",
   },
   {
-    title: "Import Supabase data (if not done)",
-    detail: "pg_dump from Supabase → data/supabase-export.sql, then bash scripts/go-live.sh again.",
-    owner: "Dev",
+    title: "Set super-admin password",
+    detail: "ADMIN_EMAIL=... NEW_PASSWORD=... bash scripts/db/reset-admin-password.sh",
+    owner: "SUPER_ADMIN",
   },
-  { title: "Disable public signup", detail: "Not needed on self-host — NestJS auth only.", owner: "Done" },
-  { title: "Configure SMTP", detail: "For password reset emails", owner: "IT", href: "/email-security" },
-  { title: "Staff accounts", detail: "User Accounts page for email/password changes", href: "/staff/accounts", owner: "SUPER_ADMIN" },
+  { title: "Disable public signup", detail: "Self-hosted NestJS auth — invite only.", owner: "Done" },
+  { title: "Staff accounts", detail: "User Accounts page + invite / bulk upload", href: "/staff/accounts", owner: "SUPER_ADMIN" },
 ];
 
 const DATA: Item[] = [
@@ -47,9 +46,9 @@ const FIRST_PAY: Item[] = [
 ];
 
 const SECURITY: Item[] = [
-  { title: "Go-live credentials / password reset", detail: "Force first login password change", href: "/go-live-credentials", owner: "SUPER_ADMIN" },
-  { title: "Admin MFA enrolled", detail: "ADMIN / SUPER_ADMIN / FINANCE_ADMIN", owner: "Admins" },
-  { title: "No public signup", detail: "Invite / bulk / go-live only — already in app", owner: "Done" },
+  { title: "Super-admin password set", detail: "Use reset-admin-password.sh on the server — not stored in git", owner: "SUPER_ADMIN" },
+  { title: "MinIO document storage", detail: "Employee documents upload/download/delete via NestJS API → MinIO", owner: "Done" },
+  { title: "No public signup", detail: "Invite / bulk only — already in app", owner: "Done" },
 ];
 
 function Section({ icon: Icon, title, items }: { icon: any; title: string; items: Item[] }) {

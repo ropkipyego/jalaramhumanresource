@@ -1,5 +1,6 @@
--- Wipe all users and create a single SUPER_ADMIN (run after migrations).
--- Substitute ${ADMIN_EMAIL} ${ADMIN_PASSWORD} ${ADMIN_NAME} ${STAFF_ID} via envsubst.
+-- DESTRUCTIVE — Supabase-style environments ONLY (requires auth schema).
+-- NEVER run on production Contabo (hr.app_credentials + public.profiles).
+-- Deletes ALL users, profiles, and roles before creating one super admin.
 
 BEGIN;
 

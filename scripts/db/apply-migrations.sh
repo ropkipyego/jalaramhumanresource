@@ -45,7 +45,11 @@ for i in $(seq 1 60); do
 done
 
 echo "→ scripts/db/00-auth-schema.sql"
-docker exec -i "$CONTAINER" psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" < scripts/db/00-auth-schema.sql
+if [[ "${SKIP_AUTH_SCHEMA:-}" == "1" ]]; then
+  echo "   SKIP (SKIP_AUTH_SCHEMA=1 — hr.app_credentials mode)"
+else
+  docker exec -i "$CONTAINER" psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" < scripts/db/00-auth-schema.sql
+fi
 
 echo "→ scripts/db/00-storage-schema.sql"
 docker exec -i "$CONTAINER" psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" < scripts/db/00-storage-schema.sql

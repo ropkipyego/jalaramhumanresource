@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Post, Req } from '@nestjs/common';
 import { Request } from 'express';
 import { AuthService } from './auth.service';
-import { LoginDto, RefreshDto } from './auth.dto';
+import { LoginDto, RefreshDto, ChangePasswordDto } from './auth.dto';
 import { Public, JwtUserPayload } from './auth.decorators';
 
 @Controller('auth')
@@ -35,5 +35,13 @@ export class AuthController {
   @Get('me')
   me(@Req() req: Request & { user: JwtUserPayload }) {
     return this.auth.me(req.user.sub);
+  }
+
+  @Post('change-password')
+  changePassword(
+    @Body() dto: ChangePasswordDto,
+    @Req() req: Request & { user: JwtUserPayload },
+  ) {
+    return this.auth.changePassword(req.user.sub, dto.newPassword, dto.currentPassword);
   }
 }
