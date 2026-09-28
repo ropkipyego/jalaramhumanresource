@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { DEFAULT_TEMP_PASSWORD } from "@/lib/tempPassword";
 import { STAFF_EMAIL_DOMAIN, normalizeStaffEmail } from "@/lib/staffEmail";
+import { adminResetStaffPassword } from "@/lib/staffAdmin";
 
 type Row = {
   id: string;
@@ -97,14 +98,15 @@ export default function UserAccounts() {
   const resetPassword = async (r: Row) => {
     if (!confirm(`Reset ${r.full_name} to ${DEFAULT_TEMP_PASSWORD}? They must change it on next login.`)) return;
     setBusyId(r.id);
-    const { error } = await (supabase as any).rpc("admin_reset_staff_password", {
-      _user_id: r.id,
-      _password: DEFAULT_TEMP_PASSWORD,
-    });
-    setBusyId(null);
-    if (error) return toast.error(error.message);
-    toast.success(`Password reset for ${r.full_name}`);
-    load();
+    try {
+      await adminResetStaffPassword(r.id, DEFAULT_TEMP_PASSWORD);
+      toast.success(`Password reset for ${r.full_name} — they must change it on next login.`);
+      load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Password reset failed");
+    } finally {
+      setBusyId(null);
+    }
   };
 
   const purge = async () => {
@@ -148,7 +150,10 @@ export default function UserAccounts() {
 
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Staff logins</CardTitle>
+          <CardTitle className="text-base">Staff login roster</CardTitle>
+          <CardDescription>
+            Reset passwords via the API (User Accounts). Path: Staff → User Accounts, or Employee → Login tab.
+          </CardDescription>
           <CardDescription>{filtered.length} of {rows.length} shown</CardDescription>
           <div className="relative max-w-md pt-2">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

@@ -20,6 +20,17 @@ export function parseShiftCell(raw: unknown): ParsedShiftCode {
     return { kind: "ok", code: compact as ShiftCode, startTime: null, label: compact };
   }
 
+  // Reception shortcuts
+  if (["630", "0630", "6:30", "6.30"].includes(compact.replace(/[^0-9:.]/g, ""))) {
+    return { kind: "ok", code: "D", startTime: "06:30", label: "D 6:30AM" };
+  }
+  if (["1030", "10:30"].includes(compact.replace(/[^0-9:.]/g, ""))) {
+    return { kind: "ok", code: "D", startTime: "10:30", label: "D 10:30AM" };
+  }
+  if (["1830", "18:30", "630PM"].includes(compact.replace(/[^0-9:.]/g, ""))) {
+    return { kind: "ok", code: "N", startTime: "18:30", label: "N 6:30PM" };
+  }
+
   // Aliases without time
   if (["DAY", "AM", "MORNING", "M"].includes(compact)) {
     return { kind: "ok", code: "D", startTime: null, label: "D" };
@@ -117,7 +128,7 @@ export function matchShiftTemplate(
     const mins = toMinutes(st);
     if (mins == null) continue;
     const dist = Math.abs(mins - want);
-    if (dist <= 15 && (!best || dist < best.dist)) {
+    if (dist <= 5 && (!best || dist < best.dist)) {
       best = { id: t.id, dist };
     }
   }

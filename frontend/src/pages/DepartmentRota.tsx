@@ -4,8 +4,9 @@ import { useRole } from '@/hooks/useRole';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Calendar } from 'lucide-react';
-import { format, startOfWeek, addWeeks, subWeeks } from 'date-fns';
+import { format, startOfWeek, addWeeks, subWeeks, startOfMonth, endOfMonth, addMonths, subMonths, eachDayOfInterval, addDays } from 'date-fns';
 import { toast } from 'sonner';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 import { WeekNavigator } from '@/components/rota/WeekNavigator';
 import { DepartmentSelector } from '@/components/rota/DepartmentSelector';
@@ -13,6 +14,13 @@ import { RotaGrid } from '@/components/rota/RotaGrid';
 import { ValidationPanel } from '@/components/rota/ValidationPanel';
 import { useRotaValidation } from '@/hooks/useRotaValidation';
 import { useManageableDepartments } from '@/hooks/useManageableDepartments';
+import {
+  departmentUsesTimedShifts,
+  defaultTemplateIdForShift,
+  filterReceptionTemplates,
+  type TimedTemplateOption,
+} from '@/lib/receptionShifts';
+import { matchShiftTemplate, type ShiftTemplateRow } from '@/lib/shiftCodeParse';
 
 import type {
   Department,
@@ -30,15 +38,22 @@ export default function DepartmentRota() {
   const { departments: manageableDepartments } = useManageableDepartments();
 
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'week' | 'month'>('week');
   const [currentWeekStart, setCurrentWeekStart] = useState(() =>
     startOfWeek(new Date(), { weekStartsOn: 1 })
   );
+  const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()));
+  const [monthCells, setMonthCells] = useState<Array<{ employee_id: string; date: string; shift_code: ShiftCode | null }>>([]);
 
   // Data state
   const [rotaWeek, setRotaWeek] = useState<RotaWeek | null>(null);
   const [employees, setEmployees] = useState<Profile[]>([]);
   const [assignments, setAssignments] = useState<Map<string, ShiftCode | null>>(new Map());
+  const [templateIds, setTemplateIds] = useState<Map<string, string | null>>(new Map());
+  const [timedTemplates, setTimedTemplates] = useState<TimedTemplateOption[]>([]);
+  const [allTemplates, setAllTemplates] = useState<ShiftTemplateRow[]>([]);
   const [originalAssignments, setOriginalAssignments] = useState<Map<string, ShiftCode | null>>(new Map());
+  const [originalTemplateIds, setOriginalTemplateIds] = useState<Map<string, string | null>>(new Map());
   const [departmentRules, setDepartmentRules] = useState<DepartmentRules | null>(null);
   const [approvedLeaves, setApprovedLeaves] = useState<LeaveRequest[]>([]);
   const [previousWeekAssignments, setPreviousWeekAssignments] = useState<Map<string, ShiftCode | null>>(new Map());
@@ -49,14 +64,22 @@ export default function DepartmentRota() {
   const [isPublishing, setIsPublishing] = useState(false);
 
   const selectedDepartment = manageableDepartments.find((d) => d.id === selectedDepartmentId);
+  const useTimedShifts = departmentUsesTimedShifts(selectedDepartment?.name);
   const isEditable = selectedDepartment ? hasRole('HEAD') || hasRole('ADMIN') : false;
   const hasChanges = useMemo(() => {
     if (assignments.size !== originalAssignments.size) return true;
     for (const [key, value] of assignments) {
       if (originalAssignments.get(key) !== value) return true;
     }
+    if (templateIds.size !== originalTemplateIds.size) return true;
+    for (const [key, value] of templateIds) {
+      if (originalTemplateIds.get(key) !== value) return true;
+    }
+    for (const [key, value] of originalTemplateIds) {
+      if (templateIds.get(key) !== value) return true;
+    }
     return false;
-  }, [assignments, originalAssignments]);
+  }, [assignments, originalAssignments, templateIds, originalTemplateIds]);
 
   // Validation
   const { blockers, warnings, canPublish } = useRotaValidation({
@@ -68,6 +91,18 @@ export default function DepartmentRota() {
     previousWeekAssignments,
   });
 
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from('shift_templates')
+        .select('id, code, name, start_time, end_time, department_id, is_active, is_night')
+        .eq('is_active', true);
+      const rows = (data || []) as ShiftTemplateRow[];
+      setAllTemplates(rows);
+      setTimedTemplates(filterReceptionTemplates(rows as any));
+    })();
+  }, []);
+
   // Set initial department
   useEffect(() => {
     if (manageableDepartments.length > 0 && !selectedDepartmentId) {
@@ -78,9 +113,10 @@ export default function DepartmentRota() {
   // Fetch data when department or week changes
   useEffect(() => {
     if (selectedDepartmentId) {
-      fetchData();
+      if (viewMode === 'week') fetchData();
+      else fetchMonthView();
     }
-  }, [selectedDepartmentId, currentWeekStart]);
+  }, [selectedDepartmentId, currentWeekStart, currentMonth, viewMode]);
 
   const fetchData = async () => {
     if (!selectedDepartmentId) return;
@@ -154,15 +190,22 @@ export default function DepartmentRota() {
         });
 
         const assignMap = new Map<string, ShiftCode | null>();
+        const tmplMap = new Map<string, string | null>();
         week.rota_assignments?.forEach((a) => {
-          assignMap.set(`${a.employee_id}-${a.day_of_week}`, a.shift_code);
+          const key = `${a.employee_id}-${a.day_of_week}`;
+          assignMap.set(key, a.shift_code);
+          if (a.shift_template_id) tmplMap.set(key, a.shift_template_id);
         });
         setAssignments(assignMap);
+        setTemplateIds(tmplMap);
         setOriginalAssignments(new Map(assignMap));
+        setOriginalTemplateIds(new Map(tmplMap));
       } else {
         setRotaWeek(null);
         setAssignments(new Map());
+        setTemplateIds(new Map());
         setOriginalAssignments(new Map());
+        setOriginalTemplateIds(new Map());
       }
 
       // Process rules
@@ -206,6 +249,54 @@ export default function DepartmentRota() {
     }
   };
 
+  const fetchMonthView = async () => {
+    if (!selectedDepartmentId) return;
+    setLoading(true);
+    try {
+      const monthStart = startOfMonth(currentMonth);
+      const monthEnd = endOfMonth(currentMonth);
+      const [employeesRes, weeksRes] = await Promise.all([
+        supabase
+          .from('employee_departments')
+          .select('employee:profiles(*)')
+          .eq('department_id', selectedDepartmentId),
+        supabase
+          .from('rota_weeks')
+          .select('week_start_date, rota_assignments(employee_id, day_of_week, shift_code)')
+          .eq('department_id', selectedDepartmentId)
+          .gte('week_start_date', format(monthStart, 'yyyy-MM-dd'))
+          .lte('week_start_date', format(monthEnd, 'yyyy-MM-dd')),
+      ]);
+
+      if (employeesRes.data) {
+        const empList = employeesRes.data
+          .map((e) => (e.employee as unknown as Profile))
+          .filter((e): e is Profile => e !== null && e.is_active);
+        setEmployees(empList);
+      }
+
+      const cells: Array<{ employee_id: string; date: string; shift_code: ShiftCode | null }> = [];
+      (weeksRes.data as any[])?.forEach((w) => {
+        const ws = new Date(`${w.week_start_date}T00:00:00`);
+        w.rota_assignments?.forEach((a: RotaAssignment) => {
+          const d = addDays(ws, a.day_of_week);
+          cells.push({
+            employee_id: a.employee_id,
+            date: format(d, 'yyyy-MM-dd'),
+            shift_code: a.shift_code,
+          });
+        });
+      });
+      setMonthCells(cells);
+      setRotaWeek(null);
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to load monthly rota');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleShiftChange = useCallback((employeeId: string, dayIndex: number, shift: ShiftCode | null) => {
     setAssignments((prev) => {
       const next = new Map(prev);
@@ -215,6 +306,30 @@ export default function DepartmentRota() {
       } else {
         next.set(key, shift);
       }
+      return next;
+    });
+    if (useTimedShifts && shift && (shift === 'D' || shift === 'N')) {
+      const tid = defaultTemplateIdForShift(timedTemplates, shift);
+      setTemplateIds((prev) => {
+        const next = new Map(prev);
+        next.set(`${employeeId}-${dayIndex}`, tid);
+        return next;
+      });
+    } else if (shift === null || shift === 'OFF' || shift === 'PH') {
+      setTemplateIds((prev) => {
+        const next = new Map(prev);
+        next.delete(`${employeeId}-${dayIndex}`);
+        return next;
+      });
+    }
+  }, [useTimedShifts, timedTemplates]);
+
+  const handleTemplateChange = useCallback((employeeId: string, dayIndex: number, templateId: string | null) => {
+    setTemplateIds((prev) => {
+      const next = new Map(prev);
+      const key = `${employeeId}-${dayIndex}`;
+      if (templateId) next.set(key, templateId);
+      else next.delete(key);
       return next;
     });
   }, []);
@@ -275,16 +390,27 @@ export default function DepartmentRota() {
         employee_id: string;
         day_of_week: number;
         shift_code: ShiftCode;
+        shift_template_id?: string | null;
       }> = [];
 
       assignments.forEach((shift, key) => {
         if (shift) {
           const [employeeId, dayStr] = key.split('-');
+          let shift_template_id = templateIds.get(key) ?? null;
+          if (!shift_template_id && useTimedShifts && (shift === 'D' || shift === 'N')) {
+            shift_template_id = defaultTemplateIdForShift(timedTemplates, shift);
+          }
+          if (!shift_template_id && allTemplates.length) {
+            const start =
+              shift === 'N' ? '18:30' : shift === 'D' ? '08:00' : null;
+            shift_template_id = matchShiftTemplate(allTemplates, selectedDepartmentId, start, shift);
+          }
           newAssignments.push({
             rota_week_id: weekId!,
             employee_id: employeeId,
             day_of_week: parseInt(dayStr),
             shift_code: shift,
+            shift_template_id,
           });
         }
       });
@@ -298,6 +424,7 @@ export default function DepartmentRota() {
       }
 
       setOriginalAssignments(new Map(assignments));
+      setOriginalTemplateIds(new Map(templateIds));
       toast.success('Rota saved successfully');
     } catch (error) {
       console.error('Error saving rota:', error);
@@ -369,6 +496,11 @@ export default function DepartmentRota() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Department Rota</h1>
           <p className="text-muted-foreground">Manage staff schedules</p>
+          {useTimedShifts && (
+            <p className="text-xs text-primary mt-1 max-w-xl">
+              Reception / housekeeping: choose Day or Night, then the slot (6:30–14:30, 8–4, 10:30–6:30, or night 18:30–06:30). Used for lateness &amp; overtime.
+            </p>
+          )}
         </div>
         <DepartmentSelector
           departments={manageableDepartments}
@@ -379,6 +511,25 @@ export default function DepartmentRota() {
 
       {selectedDepartment && (
         <>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'week' | 'month')}>
+              <TabsList>
+                <TabsTrigger value="week">Week (edit)</TabsTrigger>
+                <TabsTrigger value="month">Month (view)</TabsTrigger>
+              </TabsList>
+            </Tabs>
+            {viewMode === 'month' && (
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => setCurrentMonth(startOfMonth(new Date()))}>This month</Button>
+                <Button variant="outline" size="icon" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>‹</Button>
+                <span className="text-sm font-medium min-w-[140px] text-center">{format(currentMonth, 'MMMM yyyy')}</span>
+                <Button variant="outline" size="icon" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>›</Button>
+              </div>
+            )}
+          </div>
+
+          {viewMode === 'week' ? (
+          <>
           <WeekNavigator
             weekStartDate={currentWeekStart}
             department={selectedDepartment}
@@ -406,6 +557,9 @@ export default function DepartmentRota() {
                 loading={loading}
                 validationIssues={[...blockers, ...warnings]}
                 approvedLeaves={approvedLeaves}
+                timedTemplates={useTimedShifts ? timedTemplates : undefined}
+                templateIds={templateIds}
+                onTemplateChange={useTimedShifts ? handleTemplateChange : undefined}
               />
             </div>
 
@@ -417,6 +571,42 @@ export default function DepartmentRota() {
               />
             </div>
           </div>
+          </>
+          ) : (
+          <Card>
+            <CardContent className="pt-6 overflow-x-auto">
+              {loading ? (
+                <p className="text-muted-foreground text-center py-8">Loading month…</p>
+              ) : (
+                <table className="w-full text-xs border-collapse min-w-[800px]">
+                  <thead>
+                    <tr>
+                      <th className="text-left p-2 border-b sticky left-0 bg-background">Staff</th>
+                      {eachDayOfInterval({ start: startOfMonth(currentMonth), end: endOfMonth(currentMonth) }).map((d) => (
+                        <th key={d.toISOString()} className="p-1 border-b font-normal text-muted-foreground">{format(d, 'd')}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {employees.map((emp) => (
+                      <tr key={emp.id}>
+                        <td className="p-2 border-b sticky left-0 bg-background whitespace-nowrap">{emp.full_name}</td>
+                        {eachDayOfInterval({ start: startOfMonth(currentMonth), end: endOfMonth(currentMonth) }).map((d) => {
+                          const ds = format(d, 'yyyy-MM-dd');
+                          const cell = monthCells.find((c) => c.employee_id === emp.id && c.date === ds);
+                          return (
+                            <td key={ds} className="p-1 border-b text-center">{cell?.shift_code || '—'}</td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+              <p className="text-xs text-muted-foreground mt-3">Monthly view is read-only. Switch to Week to edit and publish.</p>
+            </CardContent>
+          </Card>
+          )}
         </>
       )}
     </div>

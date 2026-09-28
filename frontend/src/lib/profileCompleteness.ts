@@ -8,8 +8,23 @@ function filled(v: unknown): boolean {
   return String(v).trim().length > 0;
 }
 
+/** Minimum fields before staff can use the rest of the app (Phase 1). */
+export const MANDATORY_BASIC_FIELDS: { key: string; label: string }[] = [
+  { key: 'phone', label: 'Phone' },
+  { key: 'national_id', label: 'National ID' },
+  { key: 'staff_category', label: 'Staff category (Medical / Non-medical)' },
+];
+
+export type StaffCategory = 'MEDICAL' | 'NON_MEDICAL';
+
+export function isMedicalStaff(profile: ProfileLike): boolean {
+  const cat = String((profile ?? {})['staff_category'] ?? 'NON_MEDICAL').toUpperCase();
+  return cat === 'MEDICAL';
+}
+
 /** Staff fill these (contact + statutory + license + bank). */
 export const STAFF_PROFILE_FIELDS: { key: string; label: string; phase: string }[] = [
+  { key: 'staff_category', label: 'Staff category', phase: 'Contact' },
   { key: "phone", label: "Phone", phase: "Contact" },
   { key: "address", label: "Address", phase: "Contact" },
   { key: "next_of_kin_name", label: "Next of kin name", phase: "Contact" },
@@ -127,21 +142,42 @@ export type StaffOnboardingStatus = {
   documentsPercent: number;
 };
 
+export function mandatoryBasicStatus(profile: ProfileLike) {
+  const p = profile ?? {};
+  const missing = MANDATORY_BASIC_FIELDS.filter((f) => !filled(p[f.key])).map((f) => f.label);
+  return {
+    complete: missing.length === 0,
+    missing,
+    percent: MANDATORY_BASIC_FIELDS.length
+      ? Math.round(((MANDATORY_BASIC_FIELDS.length - missing.length) / MANDATORY_BASIC_FIELDS.length) * 100)
+      : 100,
+  };
+}
+
 export function staffOnboardingStatus(
   profile: ProfileLike,
   docs: DocRow[],
 ): StaffOnboardingStatus {
   const p = profile ?? {};
+  const basic = mandatoryBasicStatus(profile);
   const fieldList = STAFF_PROFILE_FIELDS.filter((f) => {
-    if (f.phase === "License") return licenseRequired(profile);
+    if (f.key === 'staff_category') return false;
+    if (f.phase === 'License') return isMedicalStaff(profile) && licenseRequired(profile);
     return true;
   });
-  const profileMissing = fieldList.filter((f) => !filled(p[f.key])).map((f) => f.label);
+  const profileMissing = [
+    ...basic.missing,
+    ...fieldList.filter((f) => !filled(p[f.key])).map((f) => f.label),
+  ];
   const docsStatus = documentCompleteness(docs, profile);
-  const totalSteps = fieldList.length + docsStatus.required;
-  const doneSteps = fieldList.length - profileMissing.length + docsStatus.done;
+  const totalSteps = MANDATORY_BASIC_FIELDS.length + fieldList.length + docsStatus.required;
+  const doneSteps =
+    MANDATORY_BASIC_FIELDS.length -
+    basic.missing.length +
+    (fieldList.length - fieldList.filter((f) => !filled(p[f.key])).length) +
+    docsStatus.done;
   return {
-    complete: profileMissing.length === 0 && docsStatus.complete,
+    complete: basic.complete,
     percent: totalSteps ? Math.round((doneSteps / totalSteps) * 100) : 100,
     profileMissing,
     documentsMissing: docsStatus.missing,

@@ -156,6 +156,20 @@ else
   psql_file "$label" "scripts/db/02-selfhost-compat.sql"
 fi
 
+label="04-live-hotfix.sql"
+if migration_applied "$label"; then
+  echo "→ SKIP $label (already applied)"
+else
+  psql_file "$label" "scripts/db/04-live-hotfix.sql"
+fi
+
+label="05-reception-housekeeping-shifts.sql"
+if migration_applied "$label"; then
+  echo "→ SKIP $label (already applied)"
+else
+  psql_file "$label" "scripts/db/05-reception-housekeeping-shifts.sql"
+fi
+
 echo ""
 echo "==> Schema summary"
 psql_exec -c "

@@ -97,6 +97,27 @@ CONFIRM_PRODUCTION_SCHEMA=yes USE_PRODUCTION_COMPOSE=1 \
 
 Full guide: [production-schema-repair.md](production-schema-repair.md)
 
+### Reception / housekeeping shift times (lateness & overtime)
+
+After schema repair (or on an already-live DB), apply hotfix SQL **04 + 05**:
+
+```bash
+bash ops/backup-postgres.sh
+USE_PRODUCTION_COMPOSE=1 bash scripts/db/apply-live-hotfix.sh
+docker compose -f docker-compose.yml -f docker-compose.production.yml up -d --force-recreate postgrest
+```
+
+This seeds shift templates:
+
+| Slot | Times |
+|------|--------|
+| Day A | 06:30 – 14:30 (`RH_D0630_1430`) |
+| Day B | 08:00 – 16:00 (`RH_D0800_1600`) |
+| Day C | 10:30 – 18:30 (`RH_D1030_1830`) |
+| Night | 18:30 – 06:30 (`RH_N1830_0630`) |
+
+**Rota:** In Department Rota for Reception / Housekeeping, pick **Day** or **Night**, then the time slot under each cell. **Save** and **Publish** so `compute_attendance_range` uses the linked template. Excel upload: use `D 6:30AM`, `D 8AM`, `D 10:30AM`, `N 6:30PM`.
+
 First-time super admin (profile + role + password):
 
 ```bash

@@ -14,14 +14,14 @@ export default function AttendanceDashboard() {
 
   const [stats, setStats] = useState({
     templates: 0, holidays: 0, activeStaff: 0,
-    presentToday: 0, onLeaveToday: 0, absentToday: 0,
+    presentToday: 0, onLeaveToday: 0, absentToday: 0, lateToday: 0,
     openExceptions: 0, pendingApproval: 0,
   });
 
   useEffect(() => {
     (async () => {
       const [
-        t, h, s, present, onLeave, absent, exceptions, pending,
+        t, h, s, present, onLeave, absent, late, exceptions, pending,
       ] = await Promise.all([
         supabase.from("shift_templates").select("id", { count: "exact", head: true }).eq("is_active", true),
         supabase.from("public_holidays").select("id", { count: "exact", head: true }).gte("holiday_date", today),
@@ -32,6 +32,8 @@ export default function AttendanceDashboard() {
           .eq("work_date", today).eq("status", "ON_LEAVE"),
         supabase.from("attendance_daily").select("id", { count: "exact", head: true })
           .eq("work_date", today).eq("status", "ABSENT"),
+        supabase.from("attendance_daily").select("id", { count: "exact", head: true })
+          .eq("work_date", today).eq("status", "LATE"),
         supabase.from("attendance_exceptions").select("id", { count: "exact", head: true }).eq("resolved", false),
         supabase.from("attendance_daily").select("id", { count: "exact", head: true })
           .eq("approval_status", "PENDING").neq("status", "OFF"),
@@ -43,6 +45,7 @@ export default function AttendanceDashboard() {
         presentToday: present.count ?? 0,
         onLeaveToday: onLeave.count ?? 0,
         absentToday: absent.count ?? 0,
+        lateToday: late.count ?? 0,
         openExceptions: exceptions.count ?? 0,
         pendingApproval: pending.count ?? 0,
       });
@@ -50,6 +53,7 @@ export default function AttendanceDashboard() {
   }, [today]);
 
   const kpis = [
+    { label: "Late Today (morning)", value: stats.lateToday, icon: Clock, href: "/attendance/records", alert: stats.lateToday > 0, critical: true },
     { label: "Present Today", value: stats.presentToday, icon: Coffee, href: "/attendance/records" },
     { label: "On Leave", value: stats.onLeaveToday, icon: CalendarDays, href: "/attendance/records" },
     { label: "Absent Today", value: stats.absentToday, icon: AlertTriangle, href: "/attendance/exceptions", alert: stats.absentToday > 0 },
@@ -78,7 +82,7 @@ export default function AttendanceDashboard() {
 
       <div className="grid gap-4 md:grid-cols-4">
         {kpis.map((k) => (
-          <Card key={k.label} className={k.alert ? "border-destructive/50" : ""}>
+          <Card key={k.label} className={k.critical && k.alert ? "border-destructive bg-destructive/5" : k.alert ? "border-destructive/50" : ""}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">{k.label}</CardTitle>
               <k.icon className={`h-4 w-4 ${k.alert ? "text-destructive" : "text-muted-foreground"}`} />

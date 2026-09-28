@@ -89,7 +89,7 @@ export default function RotaUpload() {
     const tag = mode === 'weekly' ? weekStart : format(new Date(monthStart + 'T00:00:00'), 'yyyy-MM');
     XLSX.utils.book_append_sheet(wb, ws, `Rota ${tag}`);
     XLSX.writeFile(wb, `rota-${dept?.code || 'dept'}-${tag}.xlsx`);
-    toast.success('Template downloaded — use D, N, OFF, PH or timed day e.g. D 9AM / D 6:30AM.');
+    toast.success('Template downloaded — use D, N, OFF, PH or timed: D 6:30AM, D 8AM, D 10:30AM, N 6:30PM.');
   };
 
   const normalizeCell = (raw: unknown): ParsedShift | null | 'INVALID' => {

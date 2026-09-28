@@ -6,6 +6,7 @@ import { ShiftCell } from './ShiftCell';
 import { format, addDays } from 'date-fns';
 import type { Profile, ShiftCode, LeaveRequest } from '@/types/database';
 import type { ValidationIssue } from '@/hooks/useRotaValidation';
+import type { TimedTemplateOption } from '@/lib/receptionShifts';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -18,6 +19,9 @@ interface RotaGridProps {
   loading?: boolean;
   validationIssues: ValidationIssue[];
   approvedLeaves: LeaveRequest[];
+  timedTemplates?: TimedTemplateOption[];
+  templateIds?: Map<string, string | null>;
+  onTemplateChange?: (employeeId: string, dayIndex: number, templateId: string | null) => void;
 }
 
 export function RotaGrid({
@@ -29,6 +33,9 @@ export function RotaGrid({
   loading = false,
   validationIssues,
   approvedLeaves,
+  timedTemplates,
+  templateIds,
+  onTemplateChange,
 }: RotaGridProps) {
   const getShift = (employeeId: string, dayIndex: number): ShiftCode | null => {
     return assignments.get(`${employeeId}-${dayIndex}`) ?? null;
@@ -170,6 +177,13 @@ export function RotaGrid({
                             hasError={hasIssue(employee.id, dayIndex, 'blocker')}
                             hasWarning={hasIssue(employee.id, dayIndex, 'warning')}
                             isOnLeave={onLeave}
+                            timedTemplates={timedTemplates}
+                            templateId={templateIds?.get(`${employee.id}-${dayIndex}`) ?? null}
+                            onTemplateChange={
+                              onTemplateChange
+                                ? (tid) => onTemplateChange(employee.id, dayIndex, tid)
+                                : undefined
+                            }
                           />
                         </td>
                       );

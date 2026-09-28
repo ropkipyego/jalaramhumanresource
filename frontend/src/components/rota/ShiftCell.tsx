@@ -9,6 +9,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import type { ShiftCode } from '@/types/database';
 import { cn } from '@/lib/utils';
+import type { TimedTemplateOption } from '@/lib/receptionShifts';
 
 interface ShiftCellProps {
   value: ShiftCode | null;
@@ -17,6 +18,9 @@ interface ShiftCellProps {
   hasError?: boolean;
   hasWarning?: boolean;
   isOnLeave?: boolean;
+  timedTemplates?: TimedTemplateOption[];
+  templateId?: string | null;
+  onTemplateChange?: (templateId: string | null) => void;
 }
 
 const SHIFT_OPTIONS: { value: ShiftCode | 'NONE'; label: string }[] = [
@@ -45,35 +49,71 @@ export function ShiftCell({
   hasError = false,
   hasWarning = false,
   isOnLeave = false,
+  timedTemplates,
+  templateId,
+  onTemplateChange,
 }: ShiftCellProps) {
   const handleChange = (newValue: string) => {
     onChange(newValue === 'NONE' ? null : (newValue as ShiftCode));
   };
 
+  const showTimed =
+    !disabled &&
+    timedTemplates &&
+    timedTemplates.length > 0 &&
+    onTemplateChange &&
+    (value === 'D' || value === 'N');
+
+  const timedForShift = showTimed
+    ? timedTemplates!.filter((t) => t.shift_code === value)
+    : [];
+
+  const timedSelect = showTimed && timedForShift.length > 0 && (
+    <Select
+      value={templateId || 'AUTO'}
+      onValueChange={(v) => onTemplateChange!(v === 'AUTO' ? null : v)}
+    >
+      <SelectTrigger className="h-8 mt-1 text-[10px]">
+        <SelectValue placeholder="Time slot" />
+      </SelectTrigger>
+      <SelectContent className="bg-popover z-50 max-h-48">
+        <SelectItem value="AUTO">Default slot</SelectItem>
+        {timedForShift.map((t) => (
+          <SelectItem key={t.id} value={t.id}>
+            {t.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+
   if (disabled) {
     return (
-      <div
-        className={cn(
-          'h-12 flex items-center justify-center rounded-md border bg-muted',
-          hasError && 'border-destructive bg-destructive/10',
-          hasWarning && !hasError && 'border-warning bg-warning/10',
-          isOnLeave && 'bg-accent/50'
-        )}
-      >
-        {value ? (
-          <Badge className={cn(getShiftBadgeClass(value), 'px-2.5 py-1 text-sm')}>
-            {value}
-          </Badge>
-        ) : isOnLeave ? (
-          <span className="text-[10px] uppercase tracking-wide text-[hsl(var(--warning))]">Leave</span>
-        ) : (
-          <span className="text-muted-foreground text-sm">—</span>
-        )}
+      <div className="space-y-1">
+        <div
+          className={cn(
+            'h-12 flex items-center justify-center rounded-md border bg-muted',
+            hasError && 'border-destructive bg-destructive/10',
+            hasWarning && !hasError && 'border-warning bg-warning/10',
+            isOnLeave && 'bg-accent/50'
+          )}
+        >
+          {value ? (
+            <Badge className={cn(getShiftBadgeClass(value), 'px-2.5 py-1 text-sm')}>
+              {value}
+            </Badge>
+          ) : isOnLeave ? (
+            <span className="text-[10px] uppercase tracking-wide text-[hsl(var(--warning))]">Leave</span>
+          ) : (
+            <span className="text-muted-foreground text-sm">—</span>
+          )}
+        </div>
       </div>
     );
   }
 
   return (
+    <div className="space-y-0">
     <Select value={value || 'NONE'} onValueChange={handleChange}>
       <SelectTrigger
         className={cn(
@@ -112,5 +152,7 @@ export function ShiftCell({
         ))}
       </SelectContent>
     </Select>
+    {timedSelect}
+    </div>
   );
 }

@@ -36,4 +36,13 @@ export class StaffController {
   invite(@Body() dto: InviteStaffDto, @Req() req: Request & { user: JwtUserPayload }) {
     return this.staff.invite(dto, req.user);
   }
+
+  @Post('reset-password')
+  @RequirePermissions('users:manage')
+  resetPassword(
+    @Body() body: { userId: string; password?: string },
+    @Req() req: Request & { user: JwtUserPayload },
+  ) {
+    return this.staff.resetStaffPassword(body.userId, body.password, req.user);
+  }
 }

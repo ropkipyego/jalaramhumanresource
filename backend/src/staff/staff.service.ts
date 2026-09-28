@@ -68,6 +68,53 @@ export class StaffService {
     return { success: true, userId, email };
   }
 
+  async resetStaffPassword(userId: string, newPassword: string | undefined, caller: JwtUserPayload) {
+    const password = (newPassword?.trim() || DEFAULT_STAFF_PASSWORD);
+    if (password.length < 8) {
+      throw new BadRequestException('Password must be at least 8 characters');
+    }
+
+    const callerRoles = caller.roles ?? [];
+    if (!callerRoles.includes('ADMIN') && !callerRoles.includes('SUPER_ADMIN')) {
+      throw new ForbiddenException('Only ADMIN or SUPER_ADMIN can reset passwords');
+    }
+
+    const rows = await this.db.query<{ id: string; email: string; hr_status: string | null }>(
+      `SELECT id::text, email, hr_status::text FROM public.profiles WHERE id = $1::uuid`,
+      [userId],
+    );
+    const profile = rows[0];
+    if (!profile) throw new BadRequestException('Staff profile not found');
+    if (profile.hr_status === 'TERMINATED') {
+      throw new BadRequestException('Cannot reset password for offboarded staff');
+    }
+
+    const hash = await bcrypt.hash(password, 12);
+    await this.db.query(
+      `
+      INSERT INTO hr.app_credentials (user_id, password_hash, updated_at)
+      VALUES ($1::uuid, $2, now())
+      ON CONFLICT (user_id) DO UPDATE
+        SET password_hash = EXCLUDED.password_hash, updated_at = now()
+      `,
+      [userId, hash],
+    );
+
+    if (await this.hasAuthSchema()) {
+      await this.db.query(
+        `UPDATE auth.users SET encrypted_password = crypt($2, gen_salt('bf')), updated_at = now() WHERE id = $1::uuid`,
+        [userId, password],
+      );
+    }
+
+    await this.db.query(
+      `UPDATE public.profiles SET must_change_password = true, is_active = true, updated_at = now() WHERE id = $1::uuid`,
+      [userId],
+    );
+
+    return { success: true, email: profile.email };
+  }
+
   private async inviteWithAuthSchema(userId: string, email: string, dto: InviteDto) {
     const password = dto.password?.trim() || DEFAULT_STAFF_PASSWORD;
     const meta = JSON.stringify({ full_name: dto.fullName, staff_id: dto.staffId.trim() });

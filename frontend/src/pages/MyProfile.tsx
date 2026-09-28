@@ -11,8 +11,9 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { FolderOpen, Info, KeyRound, Loader2 } from 'lucide-react';
-import { phasePercent, profileCompleteness } from '@/lib/profileCompleteness';
+import { phasePercent, profileCompleteness, mandatoryBasicStatus } from '@/lib/profileCompleteness';
 import { ProfileDocUpload } from '@/components/profile/ProfileDocUpload';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 type Editable = {
   phone: string;
@@ -28,6 +29,7 @@ type Editable = {
   bank_name: string;
   bank_branch: string;
   bank_account: string;
+  staff_category: string;
 };
 
 const EMPTY: Editable = {
@@ -44,6 +46,7 @@ const EMPTY: Editable = {
   bank_name: '',
   bank_branch: '',
   bank_account: '',
+  staff_category: 'NON_MEDICAL',
 };
 
 export default function MyProfile() {
@@ -74,6 +77,7 @@ export default function MyProfile() {
           bank_name: data.bank_name ?? '',
           bank_branch: data.bank_branch ?? '',
           bank_account: data.bank_account ?? '',
+          staff_category: data.staff_category ?? 'NON_MEDICAL',
         });
         setReadOnlyData(data);
       }
@@ -104,6 +108,7 @@ export default function MyProfile() {
 
   const merged = { ...readOnlyData, ...form };
   const c = profileCompleteness(merged);
+  const basic = mandatoryBasicStatus(merged);
   const contactPct = phasePercent(merged, 'Contact');
   const statutoryPct = phasePercent(merged, 'Statutory');
   const licensePct = phasePercent(merged, 'License');
@@ -127,19 +132,19 @@ export default function MyProfile() {
         <Alert variant={location.state?.onboardingRequired ? 'destructive' : 'default'}>
           <Info className="h-4 w-4" />
           <AlertTitle>
-            Complete your employee file ({status.percent}%)
-            {location.state?.onboardingRequired ? ' — required before using the system' : ''}
+            Phase 1 — complete basics ({basic.percent}%)
+            {location.state?.onboardingRequired ? ' — phone, ID, and staff category required to use the system' : ''}
           </AlertTitle>
           <AlertDescription className="space-y-2 text-sm">
-            <Progress value={status.percent} className="h-2 max-w-md" />
-            {status.profileMissing.length > 0 && (
-              <p>Profile fields still needed: {status.profileMissing.join(', ')}.</p>
+            <Progress value={basic.percent} className="h-2 max-w-md" />
+            {basic.missing.length > 0 && (
+              <p>Required now: {basic.missing.join(', ')}.</p>
             )}
-            {status.documentsMissing.length > 0 && (
-              <p>Documents still needed: {status.documentsMissing.join(', ')}.</p>
-            )}
+            <p className="text-muted-foreground">
+              Other profile fields and documents are recommended but not blocked. Medical staff should also complete license details.
+            </p>
             <Button asChild variant="outline" size="sm">
-              <Link to="/my-documents"><FolderOpen className="h-4 w-4 mr-2" />Manage all documents</Link>
+              <Link to="/my-documents"><FolderOpen className="h-4 w-4 mr-2" />Upload documents (optional for access)</Link>
             </Button>
           </AlertDescription>
         </Alert>
@@ -189,6 +194,19 @@ export default function MyProfile() {
           <CardDescription>How we reach you and your next of kin.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2 md:col-span-2">
+            <Label>Staff category</Label>
+            <Select
+              value={form.staff_category}
+              onValueChange={(v) => setForm((f) => ({ ...f, staff_category: v }))}
+            >
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="MEDICAL">Medical (clinical / licensed)</SelectItem>
+                <SelectItem value="NON_MEDICAL">Non-medical (admin, reception, housekeeping, etc.)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <Field label="Phone" value={form.phone} onChange={set('phone')} />
           <Field label="Address" value={form.address} onChange={set('address')} />
           <Field label="Next of kin — name" value={form.next_of_kin_name} onChange={set('next_of_kin_name')} />

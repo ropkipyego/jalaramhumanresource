@@ -150,6 +150,7 @@ export interface RotaAssignment {
   employee_id: string;
   day_of_week: number;
   shift_code: ShiftCode;
+  shift_template_id?: string | null;
   notes: string | null;
   created_at: string;
   updated_at: string;

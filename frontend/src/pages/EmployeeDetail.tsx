@@ -19,6 +19,7 @@ import { ArrowLeft, CheckCircle2, Circle, KeyRound, Loader2, Mail, User, UserX }
 import type { Branch, EmploymentType, Gender, HrStatus, JobGrade, Position } from "@/types/database";
 import { DEFAULT_TEMP_PASSWORD } from "@/lib/tempPassword";
 import { STAFF_EMAIL_DOMAIN, normalizeStaffEmail } from "@/lib/staffEmail";
+import { adminResetStaffPassword } from "@/lib/staffAdmin";
 import { profileCompleteness } from "@/lib/profileCompleteness";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -198,20 +199,16 @@ export default function EmployeeDetail() {
       return;
     }
     setLoginBusy(true);
-    const { data, error } = await (supabase as any).rpc("admin_reset_staff_password", {
-      _user_id: id,
-      _password: DEFAULT_TEMP_PASSWORD,
-    });
-    setLoginBusy(false);
-    if (error) {
-      toast.error(error.message);
-      return;
+    try {
+      await adminResetStaffPassword(id, DEFAULT_TEMP_PASSWORD);
+      toast.success(
+        `Password set to ${DEFAULT_TEMP_PASSWORD}. Tell the staff member privately — they must change it on next login.`,
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Password reset failed");
+    } finally {
+      setLoginBusy(false);
     }
-    toast.success(
-      data?.success
-        ? `Password set to ${DEFAULT_TEMP_PASSWORD}. Tell the staff member privately.`
-        : "Password reset finished."
-    );
   };
 
   const p = profile;

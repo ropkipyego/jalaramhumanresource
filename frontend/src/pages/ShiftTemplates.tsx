@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { useRole } from '@/hooks/useRole';
@@ -63,6 +64,14 @@ export default function ShiftTemplates() {
 
   return (
     <div className="space-y-6">
+      <Alert>
+        <AlertTitle>Reception &amp; housekeeping</AlertTitle>
+        <AlertDescription className="text-sm">
+          Standard slots: 06:30–14:30, 08:00–16:00, 10:30–18:30 (day) and 18:30–06:30 (night).
+          Run <code className="text-xs">scripts/db/05-reception-housekeeping-shifts.sql</code> on production if codes RH_* are missing.
+          Link templates on the rota so attendance calculates lateness and OT correctly.
+        </AlertDescription>
+      </Alert>
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Shift Templates</h1>

@@ -28,17 +28,22 @@ interface Swap {
   reason: string | null;
   status: string;
   created_at: string;
-  requester?: { full_name: string; staff_id: string };
-  target?: { full_name: string; staff_id: string };
+  requester_name?: string;
+  target_name?: string;
 }
 interface StaffOpt { id: string; full_name: string; staff_id: string }
 
 const empty = { target_id: "", requester_date: "", target_date: "", requester_shift: "", target_shift: "", reason: "" };
 
+function profileName(map: Map<string, StaffOpt>, id: string | null | undefined) {
+  if (!id) return "—";
+  const p = map.get(id);
+  return p ? `${p.full_name} (${p.staff_id})` : id.slice(0, 8);
+}
+
 export default function ShiftSwaps() {
   const { user } = useAuth();
-  const { hasRole } = useRole();
-  const canManage = hasRole("HEAD");
+  const { canManageStaffLogins } = useRole();
   const [rows, setRows] = useState<Swap[]>([]);
   const [staff, setStaff] = useState<StaffOpt[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,13 +53,23 @@ export default function ShiftSwaps() {
 
   const load = async () => {
     setLoading(true);
-    let q = db.from("shift_swap_requests")
-      .select("*, requester:profiles!shift_swap_requests_requester_id_fkey(full_name, staff_id), target:profiles!shift_swap_requests_target_id_fkey(full_name, staff_id)")
-      .order("created_at", { ascending: false });
+    let q = db.from("shift_swap_requests").select("*").order("created_at", { ascending: false });
     if (!showAll) q = q.eq("status", "pending");
     const { data, error } = await q;
-    if (error) toast.error(error.message);
-    setRows((data as Swap[]) || []);
+    if (error) {
+      toast.error(error.message);
+      setRows([]);
+    } else {
+      const map = new Map(staff.map((s) => [s.id, s]));
+      const list = (data as Swap[]) || [];
+      setRows(
+        list.map((r) => ({
+          ...r,
+          requester_name: profileName(map, r.requester_id),
+          target_name: profileName(map, r.target_id),
+        })),
+      );
+    }
     setLoading(false);
   };
 
@@ -63,7 +78,7 @@ export default function ShiftSwaps() {
       .then(({ data }) => setStaff((data as StaffOpt[]) || []));
   }, []);
 
-  useEffect(() => { load(); }, [showAll]);
+  useEffect(() => { load(); }, [showAll, staff]);
 
   const submit = async () => {
     if (!form.target_id || !form.requester_date || !form.target_date)
@@ -80,16 +95,23 @@ export default function ShiftSwaps() {
       status: "pending",
     });
     if (error) return toast.error(error.message);
-    toast.success("Swap request submitted");
+    toast.success("Swap request submitted — HR will review before the rota is updated.");
     setOpen(false); setForm(empty); load();
   };
 
   const review = async (id: string, status: "approved" | "rejected") => {
+    if (!canManageStaffLogins) {
+      toast.error("Only HR (Admin) can approve shift swaps.");
+      return;
+    }
     const { error } = await db.from("shift_swap_requests").update({
       status, reviewed_by: user!.id, reviewed_at: new Date().toISOString(),
     }).eq("id", id);
     if (error) toast.error(error.message);
-    else { toast.success(`Swap ${status}`); load(); }
+    else {
+      toast.success(status === "approved" ? "Approved — update the published rota to reflect the swap." : `Swap ${status}`);
+      load();
+    }
   };
 
   return (
@@ -97,7 +119,7 @@ export default function ShiftSwaps() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Shift Swaps</h1>
-          <p className="text-muted-foreground">Request and manage shift swap requests.</p>
+          <p className="text-muted-foreground">Staff request swaps; HR approves before changes go on the rota.</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => setShowAll(!showAll)}>
@@ -154,7 +176,7 @@ export default function ShiftSwaps() {
                   <TableHead>Dates</TableHead>
                   <TableHead>Shifts</TableHead>
                   <TableHead>Status</TableHead>
-                  {canManage && <TableHead className="text-right">Actions</TableHead>}
+                  {canManageStaffLogins && <TableHead className="text-right">HR actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -163,17 +185,17 @@ export default function ShiftSwaps() {
                 ) : rows.map((r) => (
                   <TableRow key={r.id}>
                     <TableCell>
-                      <div className="font-medium">{r.requester?.full_name}</div>
+                      <div className="font-medium">{r.requester_name}</div>
                       <div className="text-xs text-muted-foreground">{format(new Date(r.requester_date + "T00:00:00"), "dd MMM")}</div>
                     </TableCell>
                     <TableCell>
-                      <div className="font-medium">{r.target?.full_name}</div>
+                      <div className="font-medium">{r.target_name}</div>
                       <div className="text-xs text-muted-foreground">{format(new Date(r.target_date + "T00:00:00"), "dd MMM")}</div>
                     </TableCell>
                     <TableCell className="text-sm">{r.requester_date} ↔ {r.target_date}</TableCell>
                     <TableCell className="text-sm">{r.requester_shift || "—"} ↔ {r.target_shift || "—"}</TableCell>
                     <TableCell><Badge variant="outline">{r.status}</Badge></TableCell>
-                    {canManage && (
+                    {canManageStaffLogins && (
                       <TableCell className="text-right space-x-1">
                         {r.status === "pending" && (
                           <>
