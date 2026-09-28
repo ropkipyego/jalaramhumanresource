@@ -150,10 +150,10 @@ export default function OrganizationSetup() {
                   <Input
                     value={org.logo_url ?? ""}
                     onChange={(e) => setOrg({ ...org, logo_url: e.target.value })}
-                    placeholder="https://... or /jalaram-logo.svg"
+                    placeholder="https://jalaram.co.ke/assets/Logo-Final.png"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Paste a public image URL, or put a file in <code>public/jalaram-logo.svg</code> / <code>.webp</code>.
+                    Default is Jalaram Hospital&apos;s logo. Override with a URL or replace <code>public/jalaram-logo.png</code>.
                     Shows on login and sidebar.
                   </p>
                 </div>
