@@ -1,26 +1,25 @@
 /**
  * Biometric Excel parser.
  *
- * PRIMARY FORMAT (locked to the hospital's ZKTeco export):
+ * PRIMARY FORMAT (Jalaram / ZKTeco device export):
  *   "Attendance Record Report" monthly matrix
- *   - Row 1: "Attendance Record Report"
- *   - A row containing "Att. Time" + a date range like "2026-06-01 ~ 2026-06-30"
- *   - Day-of-week row (MON TUE …)
- *   - Day-of-month row (1 2 3 … 30/31)  ← used as the column → date map
- *   - Then for every employee: an "ID: <enroll> Name: <name> <dept>" row,
- *     immediately followed by a row of punches per day. Each cell may contain
- *     0..N concatenated punches, e.g. "08:1318:04", "07:25 18:27",
- *     "08:2618:5618:59". Times alternate IN, OUT, IN, OUT…
+ *   - Title row: "Attendance Record Report"
+ *   - Optional: "Att. Time" + "2026-08-01 ~ 2026-08-31"
+ *   - Day-of-week row, then day-of-month row (may be partial month / multi-page)
+ *   - Per employee: "ID: <enroll> Name: <name>" (optional "Dept.: …")
+ *   - Next row: punches per day (concatenated times, alternated IN/OUT)
  *
- * Fallback formats are still detected for older/other devices.
+ * Matching key: **device Enroll ID** (`profiles.biometric_enroll_id`), with name + department
+ * used to resolve ambiguities against department rosters.
  */
 
 export type ParsedPunch = {
   row: number;
-  staff_id: string;      // enroll id or staff id used to match to profile
+  staff_id: string;
   employee_id?: string;
   full_name?: string;
-  punch_at: string;      // ISO
+  department_name?: string;
+  punch_at: string;
   punch_type: "IN" | "OUT";
   source: "BIOMETRIC";
 };
@@ -32,20 +31,47 @@ export type ParseResult = {
   punches: ParsedPunch[];
   errors: ParseError[];
   dateRange: { from: string | null; to: string | null };
+  needsReferenceMonth?: boolean;
+};
+
+export type ParseBiometricOptions = {
+  /** First day of report month when the file has no "Att. Time" range (YYYY-MM). */
+  referenceMonth?: string;
+  fileName?: string;
 };
 
 const cellStr = (v: unknown) => String(v ?? "").trim();
 const norm = (v: unknown) => cellStr(v).toLowerCase().replace(/[_\s]+/g, " ");
+
+const MONTH_INDEX: Record<string, number> = {
+  january: 0, jan: 0, february: 1, feb: 1, march: 2, mar: 2, april: 3, apr: 3,
+  may: 4, june: 5, jun: 5, july: 6, jul: 6, august: 7, aug: 7,
+  september: 8, sep: 8, sept: 8, october: 9, oct: 9, november: 10, nov: 10,
+  december: 11, dec: 11,
+};
+
+export function inferReferenceMonthFromFileName(fileName: string): string | null {
+  const base = fileName.replace(/\.[^.]+$/, "").toLowerCase();
+  const yearM = base.match(/(20\d{2})/);
+  const year = yearM ? +yearM[1] : new Date().getFullYear();
+  const keys = Object.keys(MONTH_INDEX).sort((a, b) => b.length - a.length);
+  for (const key of keys) {
+    if (base.includes(key)) {
+      return `${year}-${String(MONTH_INDEX[key] + 1).padStart(2, "0")}`;
+    }
+  }
+  return null;
+}
 
 /* -------------------------------------------------------------------------- */
 /*  PRIMARY: ZKTeco "Attendance Record Report" monthly matrix                 */
 /* -------------------------------------------------------------------------- */
 
 function isZktecoMatrix(aoa: unknown[][]): boolean {
-  for (let r = 0; r < Math.min(aoa.length, 10); r++) {
+  for (let r = 0; r < Math.min(aoa.length, 12); r++) {
     for (const c of aoa[r] || []) {
       const s = norm(c);
-      if (s.startsWith("attendance record report")) return true;
+      if (s.includes("attendance record report")) return true;
       if (s === "att time" || s === "att. time") return true;
     }
   }
@@ -53,8 +79,9 @@ function isZktecoMatrix(aoa: unknown[][]): boolean {
 }
 
 function findDateRange(aoa: unknown[][]): { from: Date; to: Date } | null {
-  const re = /(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})\s*[~\-–to]+\s*(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/;
-  for (let r = 0; r < Math.min(aoa.length, 15); r++) {
+  const re =
+    /(\d{4})[-/](\d{1,2})[-/](\d{1,2})\s*[~\-–to]+\s*(\d{4})[-/](\d{1,2})[-/](\d{1,2})/;
+  for (let r = 0; r < Math.min(aoa.length, 20); r++) {
     for (const c of aoa[r] || []) {
       const s = cellStr(c);
       const m = s.match(re);
@@ -69,23 +96,148 @@ function findDateRange(aoa: unknown[][]): { from: Date; to: Date } | null {
   return null;
 }
 
-function findDayOfMonthRow(aoa: unknown[][]): number {
-  for (let r = 0; r < Math.min(aoa.length, 20); r++) {
-    const row = aoa[r] || [];
-    let count = 0;
-    for (const c of row) {
-      const n = Number(c);
-      if (Number.isInteger(n) && n >= 1 && n <= 31) count++;
-    }
-    if (count >= 15) return r;
+function resolveReferenceMonth(
+  aoa: unknown[][],
+  options?: ParseBiometricOptions,
+): { year: number; month: number } | null {
+  const range = findDateRange(aoa);
+  if (range) return { year: range.from.getFullYear(), month: range.from.getMonth() };
+  const ref = options?.referenceMonth?.trim();
+  if (ref && /^\d{4}-\d{2}$/.test(ref)) {
+    const [y, m] = ref.split("-").map(Number);
+    return { year: y, month: m - 1 };
   }
-  return -1;
+  if (options?.fileName) {
+    const inferred = inferReferenceMonthFromFileName(options.fileName);
+    if (inferred) {
+      const [y, m] = inferred.split("-").map(Number);
+      return { year: y, month: m - 1 };
+    }
+  }
+  return null;
+}
+
+function countDayNumbers(row: unknown[]): number {
+  let count = 0;
+  for (const c of row) {
+    const n = Number(cellStr(c));
+    if (Number.isInteger(n) && n >= 1 && n <= 31) count++;
+  }
+  return count;
+}
+
+function isDayOfMonthHeaderRow(row: unknown[]): boolean {
+  return countDayNumbers(row) >= 7;
+}
+
+type ColDate = { col: number; date: Date };
+
+function buildColMapFromDayRow(
+  row: unknown[],
+  startYear: number,
+  startMonth: number,
+  prevLastDay: number,
+): { map: ColDate[]; lastDay: number } {
+  const days: { col: number; day: number }[] = [];
+  for (let c = 0; c < row.length; c++) {
+    const n = Number(cellStr(row[c]));
+    if (Number.isInteger(n) && n >= 1 && n <= 31) days.push({ col: c, day: n });
+  }
+  let y = startYear;
+  let m = startMonth;
+  let prev = prevLastDay;
+  const map: ColDate[] = [];
+  for (const { col, day } of days) {
+    if (prev >= 28 && day < prev - 3) {
+      m += 1;
+      if (m > 11) {
+        m = 0;
+        y += 1;
+      }
+    }
+    map.push({ col, date: new Date(y, m, day) });
+    prev = day;
+  }
+  return { map, lastDay: prev };
+}
+
+function parseEmployeeHeader(row: unknown[]): {
+  enrollId: string;
+  fullName: string;
+  department?: string;
+} | null {
+  const joined = row.map(cellStr).filter(Boolean).join(" ");
+  if (!/id\s*:/i.test(joined)) return null;
+
+  const block = joined.match(
+    /id\s*:\s*(\S+)\s+name\s*:\s*(.+?)(?:\s+dept\.?\s*:\s*(.+))?$/i,
+  );
+  if (block) {
+    return {
+      enrollId: block[1].trim(),
+      fullName: block[2].trim(),
+      department: block[3]?.trim(),
+    };
+  }
+
+  let enrollId = "";
+  let fullName = "";
+  let department: string | undefined;
+  const idIdx = row.findIndex((v) => /id\s*:/i.test(cellStr(v)));
+  if (idIdx < 0) return null;
+  const idCell = cellStr(row[idIdx]);
+  const idInline = idCell.match(/id\s*:\s*(\S+)/i);
+  if (idInline) enrollId = idInline[1];
+  else {
+    for (let j = idIdx + 1; j < row.length; j++) {
+      const v = cellStr(row[j]);
+      if (v && !/^name\s*:/i.test(v)) {
+        enrollId = v;
+        break;
+      }
+    }
+  }
+  const nameIdx = row.findIndex((v) => /name\s*:/i.test(cellStr(v)));
+  if (nameIdx >= 0) {
+    const nameCell = cellStr(row[nameIdx]);
+    const nameInline = nameCell.match(/name\s*:\s*(.+)/i);
+    if (nameInline) fullName = nameInline[1].trim();
+    else {
+      for (let j = nameIdx + 1; j < row.length; j++) {
+        const v = cellStr(row[j]);
+        if (v) {
+          fullName = v;
+          break;
+        }
+      }
+    }
+  }
+  const deptM = joined.match(/dept\.?\s*:\s*(.+)/i);
+  if (deptM) department = deptM[1].trim();
+  if (!enrollId) return null;
+  return { enrollId, fullName, department };
+}
+
+function parseDeptOnlyRow(row: unknown[]): string | null {
+  const joined = row.map(cellStr).filter(Boolean).join(" ");
+  if (!/dept\.?\s*:/i.test(joined)) return null;
+  if (/id\s*:/i.test(joined)) return null;
+  const m = joined.match(/dept\.?\s*:\s*(.*)$/i);
+  const name = m?.[1]?.trim();
+  return name || "";
+}
+
+function rowLooksLikePunchRow(row: unknown[]): boolean {
+  let hits = 0;
+  for (const c of row) {
+    const s = cellStr(c);
+    if (!s) continue;
+    if (/\d{1,2}:\d{2}/.test(s) || /\d{4,}/.test(s.replace(/:/g, ""))) hits++;
+  }
+  return hits >= 2;
 }
 
 function extractTimesFromCell(cell: string): string[] {
-  // Accept HH:MM (with or without seconds/colons). Concatenated 4-digit pairs
-  // like "08:1318:04" or "082618561859" should split into 08:13,18:04 or
-  // 08:26,18:56,18:59. Strategy: scan sliding pairs of (HH)(MM).
   const cleaned = cell.replace(/[^0-9:]/g, " ").trim();
   if (!cleaned) return [];
   const out: string[] = [];
@@ -97,106 +249,176 @@ function extractTimesFromCell(cell: string): string[] {
   const tokens = cleaned.split(/\s+/);
   for (const t of tokens) {
     if (t.includes(":")) {
-      // "08:1318:04"  or "08:13"
       const parts = t.split(":").filter(Boolean);
-      // Rebuild by pulling 2 digits at a time
       const digits = parts.join("");
       for (let i = 0; i + 4 <= digits.length; i += 4) {
         push(+digits.slice(i, i + 2), +digits.slice(i + 2, i + 4));
       }
     } else {
-      // pure digits e.g. "081318041859"
       for (let i = 0; i + 4 <= t.length; i += 4) {
         push(+t.slice(i, i + 2), +t.slice(i + 2, i + 4));
       }
     }
   }
-  // dedupe adjacent duplicates while preserving order
   return out.filter((v, i, a) => v !== a[i - 1]);
 }
 
-function parseZktecoMatrix(aoa: unknown[][]): ParseResult {
+function ingestPunchRow(
+  punchRow: unknown[],
+  colMap: ColDate[],
+  enrollId: string,
+  fullName: string,
+  department: string | undefined,
+  rowNum: number,
+  punches: ParsedPunch[],
+) {
+  for (const { col, date } of colMap) {
+    const raw = cellStr(punchRow[col]);
+    if (!raw) continue;
+    const times = extractTimesFromCell(raw);
+    times.forEach((t, idx) => {
+      const [hh, mm] = t.split(":").map(Number);
+      const dt = new Date(date.getFullYear(), date.getMonth(), date.getDate(), hh, mm, 0);
+      punches.push({
+        row: rowNum,
+        staff_id: enrollId,
+        full_name: fullName || undefined,
+        department_name: department,
+        punch_at: dt.toISOString(),
+        punch_type: idx % 2 === 0 ? "IN" : "OUT",
+        source: "BIOMETRIC",
+      });
+    });
+  }
+}
+
+function parseZktecoMatrix(aoa: unknown[][], options?: ParseBiometricOptions): ParseResult {
   const errors: ParseError[] = [];
   const punches: ParsedPunch[] = [];
 
   const range = findDateRange(aoa);
-  const dayRow = findDayOfMonthRow(aoa);
-  if (!range || dayRow < 0) {
+  const ref = resolveReferenceMonth(aoa, options);
+  if (!ref) {
     return {
       format: "zkteco-monthly-matrix",
       punches: [],
-      errors: [{ row: 0, error: "Could not detect date range or day-of-month header row" }],
+      errors: [],
       dateRange: { from: null, to: null },
+      needsReferenceMonth: true,
     };
   }
-  const year = range.from.getFullYear();
-  const month = range.from.getMonth();
 
-  const colMap: { col: number; date: Date }[] = [];
-  const headerRow = aoa[dayRow] || [];
-  for (let c = 0; c < headerRow.length; c++) {
-    const n = Number(headerRow[c]);
-    if (Number.isInteger(n) && n >= 1 && n <= 31) {
-      colMap.push({ col: c, date: new Date(year, month, n) });
-    }
-  }
+  let colMap: ColDate[] = [];
+  let prevLastDay = -1;
+  let currentDept = "";
+  let lastEmployee: { enrollId: string; fullName: string; department?: string } | null = null;
 
-  for (let r = dayRow + 1; r < aoa.length; r++) {
+  for (let r = 0; r < aoa.length; r++) {
     const row = aoa[r] || [];
-    const idIdx = row.findIndex((v) => {
-      const s = norm(v);
-      return s === "id:" || s === "id" || s.startsWith("id:");
-    });
-    if (idIdx < 0) continue;
 
-    let enrollId = "";
-    let fullName = "";
-    for (let j = idIdx + 1; j < row.length; j++) {
-      const v = cellStr(row[j]);
-      if (v) { enrollId = v; break; }
+    if (isDayOfMonthHeaderRow(row)) {
+      const built = buildColMapFromDayRow(row, ref.year, ref.month, prevLastDay);
+      colMap = built.map;
+      prevLastDay = built.lastDay;
+      continue;
     }
-    const nameIdx = row.findIndex((v) => norm(v) === "name:" || norm(v).startsWith("name:"));
-    if (nameIdx >= 0) {
-      for (let j = nameIdx + 1; j < row.length; j++) {
-        const v = cellStr(row[j]);
-        if (v) { fullName = v; break; }
+
+    const deptOnly = parseDeptOnlyRow(row);
+    if (deptOnly !== null) {
+      currentDept = deptOnly;
+      if (rowLooksLikePunchRow(row) && lastEmployee && colMap.length) {
+        ingestPunchRow(
+          row,
+          colMap,
+          lastEmployee.enrollId,
+          lastEmployee.fullName,
+          currentDept || lastEmployee.department,
+          r + 1,
+          punches,
+        );
       }
-    }
-    if (!enrollId) continue;
-
-    const punchRow = aoa[r + 1] || [];
-    for (const { col, date } of colMap) {
-      const raw = cellStr(punchRow[col]);
-      if (!raw) continue;
-      const times = extractTimesFromCell(raw);
-      times.forEach((t, idx) => {
-        const [hh, mm] = t.split(":").map(Number);
-        const dt = new Date(date.getFullYear(), date.getMonth(), date.getDate(), hh, mm, 0);
-        punches.push({
-          row: r + 2,
-          staff_id: enrollId,
-          full_name: fullName || undefined,
-          punch_at: dt.toISOString(),
-          punch_type: idx % 2 === 0 ? "IN" : "OUT",
-          source: "BIOMETRIC",
-        });
-      });
+      continue;
     }
 
-    // Skip the punch row we just consumed
-    r += 1;
+    const emp = parseEmployeeHeader(row);
+    if (emp) {
+      lastEmployee = {
+        ...emp,
+        department: emp.department || currentDept || undefined,
+      };
+      const punchRow = aoa[r + 1] || [];
+      if (colMap.length && rowLooksLikePunchRow(punchRow)) {
+        ingestPunchRow(
+          punchRow,
+          colMap,
+          emp.enrollId,
+          emp.fullName,
+          lastEmployee.department,
+          r + 2,
+          punches,
+        );
+        r += 1;
+      }
+      continue;
+    }
+
+    if (lastEmployee && colMap.length && rowLooksLikePunchRow(row) && !parseEmployeeHeader(row)) {
+      ingestPunchRow(
+        row,
+        colMap,
+        lastEmployee.enrollId,
+        lastEmployee.fullName,
+        lastEmployee.department || currentDept || undefined,
+        r + 1,
+        punches,
+      );
+    }
   }
 
   punches.sort((a, b) => a.punch_at.localeCompare(b.punch_at));
+  let from: string | null = range?.from.toISOString().slice(0, 10) ?? null;
+  let to: string | null = range?.to.toISOString().slice(0, 10) ?? null;
+  if (!from && punches.length) {
+    from = punches[0].punch_at.slice(0, 10);
+    to = punches[punches.length - 1].punch_at.slice(0, 10);
+  }
+
   return {
     format: "zkteco-monthly-matrix",
     punches,
     errors,
-    dateRange: {
-      from: range.from.toISOString().slice(0, 10),
-      to: range.to.toISOString().slice(0, 10),
-    },
+    dateRange: { from, to },
   };
+}
+
+/** Reference layout matching ZKTeco "Attendance Record Report" export. */
+export function buildZktecoAttendanceRecordTemplate(referenceMonth: string): unknown[][] {
+  const [y, m] = referenceMonth.split("-").map(Number);
+  const start = new Date(y, m - 1, 1);
+  const end = new Date(y, m, 0);
+  const fromStr = `${y}-${String(m).padStart(2, "0")}-01`;
+  const toStr = `${y}-${String(m).padStart(2, "0")}-${String(end.getDate()).padStart(2, "0")}`;
+  const daysInMonth = end.getDate();
+  const dows = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
+  const dowRow: string[] = [];
+  const dayRow: (string | number)[] = [];
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dt = new Date(y, m - 1, d);
+    dowRow.push(dows[(dt.getDay() + 6) % 7]);
+    dayRow.push(d);
+  }
+  return [
+    ["Attendance Record Report"],
+    ["Att. Time", `${fromStr} ~ ${toStr}`],
+    dowRow,
+    dayRow,
+    ["ID: 101 Name: Jane Doe Dept.: Reception"],
+    dayRow.map((d, i) =>
+      i === 0 ? "08:0218:05" : i === 1 ? "07:5518:10" : "",
+    ),
+    ["ID: 102 Name: John Smith Dept.: Housekeeping"],
+    dayRow.map((d, i) => (i === 0 ? "18:3006:45" : "")),
+  ];
 }
 
 /* -------------------------------------------------------------------------- */
@@ -204,16 +426,16 @@ function parseZktecoMatrix(aoa: unknown[][]): ParseResult {
 /* -------------------------------------------------------------------------- */
 
 const STAFF_ALIASES = [
-  "staff id","employee id","emp id","user id","enroll no","enroll number",
-  "enrollment no","badge","pin","personnel id","id no","empno","emp no",
-  "ac no","account id","userid",
+  "staff id", "employee id", "emp id", "user id", "enroll no", "enroll number",
+  "enrollment no", "badge", "pin", "personnel id", "id no", "empno", "emp no",
+  "ac no", "account id", "userid",
 ];
-const DATE_ALIASES = ["date","work date","attendance date","punch date"];
-const TIME_ALIASES = ["time","punch time","clock time"];
-const DATETIME_ALIASES = ["datetime","date time","timestamp","punch datetime","check time"];
-const IN_ALIASES = ["time in","check in","clock in","in time","in","checkin","timein"];
-const OUT_ALIASES = ["time out","check out","clock out","out time","out","checkout","timeout"];
-const TYPE_ALIASES = ["state","type","status","punch type","io","check type","verify mode"];
+const DATE_ALIASES = ["date", "work date", "attendance date", "punch date"];
+const TIME_ALIASES = ["time", "punch time", "clock time"];
+const DATETIME_ALIASES = ["datetime", "date time", "timestamp", "punch datetime", "check time"];
+const IN_ALIASES = ["time in", "check in", "clock in", "in time", "in", "checkin", "timein"];
+const OUT_ALIASES = ["time out", "check out", "clock out", "out time", "out", "checkout", "timeout"];
+const TYPE_ALIASES = ["state", "type", "status", "punch type", "io", "check type", "verify mode"];
 
 const matchHeader = (h: string[], a: string[]) =>
   h.findIndex((x) => a.some((k) => x === k || x.includes(k)));
@@ -224,7 +446,8 @@ function parseDateTime(dateVal: unknown, timeVal?: unknown): string | null {
     const d = new Date(ms);
     if (timeVal != null && timeVal !== "") {
       if (typeof timeVal === "number" && timeVal < 1) {
-        d.setHours(0, 0, 0, 0); d.setSeconds(Math.round(timeVal * 86400));
+        d.setHours(0, 0, 0, 0);
+        d.setSeconds(Math.round(timeVal * 86400));
       } else {
         const m = String(timeVal).match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
         if (m) d.setHours(+m[1], +m[2], m[3] ? +m[3] : 0, 0);
@@ -242,14 +465,16 @@ function parseDateTime(dateVal: unknown, timeVal?: unknown): string | null {
     let tStr = String(timeVal).trim();
     if (typeof timeVal === "number" && timeVal < 1) {
       const sec = Math.round(timeVal * 86400);
-      const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), sc = sec % 60;
-      tStr = `${h}:${String(m).padStart(2,"0")}:${String(sc).padStart(2,"0")}`;
+      const h = Math.floor(sec / 3600);
+      const m = Math.floor((sec % 3600) / 60);
+      const sc = sec % 60;
+      tStr = `${h}:${String(m).padStart(2, "0")}:${String(sc).padStart(2, "0")}`;
     }
     const d = new Date(`${s}T${tStr.length <= 5 ? tStr + ":00" : tStr}`);
     if (!isNaN(d.getTime())) return d.toISOString();
     const dm = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
     if (dm) {
-      const d2 = new Date(`${dm[3]}-${dm[2].padStart(2,"0")}-${dm[1].padStart(2,"0")}T${tStr}`);
+      const d2 = new Date(`${dm[3]}-${dm[2].padStart(2, "0")}-${dm[1].padStart(2, "0")}T${tStr}`);
       if (!isNaN(d2.getTime())) return d2.toISOString();
     }
   }
@@ -270,7 +495,9 @@ function inferType(raw: unknown): "IN" | "OUT" | null {
 function parseFallback(aoa: unknown[][]): ParseResult {
   const errors: ParseError[] = [];
   const punches: ParsedPunch[] = [];
-  if (aoa.length < 2) return { format: "empty", punches, errors: [{ row: 0, error: "Empty sheet" }], dateRange: { from: null, to: null } };
+  if (aoa.length < 2) {
+    return { format: "empty", punches, errors: [{ row: 0, error: "Empty sheet" }], dateRange: { from: null, to: null } };
+  }
   const headers = (aoa[0] as unknown[]).map(norm);
   const staffCol = matchHeader(headers, STAFF_ALIASES);
   const dateCol = matchHeader(headers, DATE_ALIASES);
@@ -307,18 +534,25 @@ function parseFallback(aoa: unknown[][]): ParseResult {
       }
       continue;
     }
-    const iso = format === "zkteco-datetime"
-      ? parseDateTime(row[dtCol])
-      : parseDateTime(row[dateCol], timeCol >= 0 ? row[timeCol] : undefined);
-    if (!iso) { errors.push({ row: rn, staff_id: staffId, error: "Invalid date/time" }); continue; }
+    const iso =
+      format === "zkteco-datetime"
+        ? parseDateTime(row[dtCol])
+        : parseDateTime(row[dateCol], timeCol >= 0 ? row[timeCol] : undefined);
+    if (!iso) {
+      errors.push({ row: rn, staff_id: staffId, error: "Invalid date/time" });
+      continue;
+    }
     const pType: "IN" | "OUT" =
       (typeCol >= 0 ? inferType(row[typeCol]) : null) ??
-      (punches.filter((p) => p.staff_id === staffId && p.punch_at.slice(0,10) === iso.slice(0,10)).length % 2 === 0 ? "IN" : "OUT");
+      (punches.filter((p) => p.staff_id === staffId && p.punch_at.slice(0, 10) === iso.slice(0, 10)).length % 2 === 0
+        ? "IN"
+        : "OUT");
     punches.push({ row: rn, staff_id: staffId, punch_at: iso, punch_type: pType, source: "BIOMETRIC" });
   }
 
   punches.sort((a, b) => a.punch_at.localeCompare(b.punch_at));
-  let from: string | null = null, to: string | null = null;
+  let from: string | null = null;
+  let to: string | null = null;
   for (const p of punches) {
     const d = p.punch_at.slice(0, 10);
     if (!from || d < from) from = d;
@@ -327,16 +561,36 @@ function parseFallback(aoa: unknown[][]): ParseResult {
   return { format, punches, errors, dateRange: { from, to } };
 }
 
-/* -------------------------------------------------------------------------- */
-export function parseBiometricSheet(aoa: unknown[][]): ParseResult {
-  if (isZktecoMatrix(aoa)) return parseZktecoMatrix(aoa);
+export function parseBiometricSheet(aoa: unknown[][], options?: ParseBiometricOptions): ParseResult {
+  if (isZktecoMatrix(aoa)) return parseZktecoMatrix(aoa, options);
   return parseFallback(aoa);
 }
 
-export type EmployeeLite = { id: string; staff_id: string; biometric_enroll_id?: string | null; full_name?: string };
+export type EmployeeLite = {
+  id: string;
+  staff_id: string;
+  biometric_enroll_id?: string | null;
+  full_name?: string;
+  department_names?: string[];
+};
 
 const tokenize = (s: string) =>
   s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().split(/\s+/).filter(Boolean);
+
+function deptMatches(punchDept: string | undefined, employeeDepts: string[] | undefined): boolean {
+  if (!punchDept?.trim()) return true;
+  if (!employeeDepts?.length) return true;
+  const p = punchDept.toLowerCase();
+  return employeeDepts.some(
+    (d) => d.includes(p) || p.includes(d) || tokenize(d).some((t) => tokenize(p).includes(t)),
+  );
+}
+
+function filterEmployeesByDepartment(employees: EmployeeLite[], departmentName?: string): EmployeeLite[] {
+  if (!departmentName?.trim()) return employees;
+  const filtered = employees.filter((e) => deptMatches(departmentName, e.department_names));
+  return filtered.length ? filtered : employees;
+}
 
 function fuzzyMatchByName(name: string, employees: EmployeeLite[]): string | null {
   const t = tokenize(name);
@@ -352,7 +606,6 @@ function fuzzyMatchByName(name: string, employees: EmployeeLite[]): string | nul
     }
     if (!best || score > best.score) best = { id: e.id, score };
   }
-  // Require a strong single match: at least 2 points AND unique top score
   if (!best || best.score < 2) return null;
   const tied = employees.filter((e) => {
     const et = tokenize(e.full_name || "");
@@ -371,25 +624,44 @@ export function matchPunchesToEmployees(
   employees: EmployeeLite[],
 ): { matched: ParsedPunch[]; unmatched: ParseError[] } {
   const byKey = new Map<string, string>();
-  const byName = new Map<string, string>();
   for (const e of employees) {
     byKey.set(e.staff_id.trim().toUpperCase(), e.id);
     if (e.biometric_enroll_id) byKey.set(e.biometric_enroll_id.trim().toUpperCase(), e.id);
-    if (e.full_name) byName.set(e.full_name.trim().toUpperCase(), e.id);
   }
+
   const matched: ParsedPunch[] = [];
   const unmatched: ParseError[] = [];
+
+  const metaByEnroll = new Map<string, { full_name?: string; department_name?: string }>();
   for (const p of punches) {
-    let empId =
-      byKey.get(p.staff_id.trim().toUpperCase()) ||
-      (p.full_name ? byName.get(p.full_name.trim().toUpperCase()) : undefined) ||
-      (p.full_name ? fuzzyMatchByName(p.full_name, employees) ?? undefined : undefined);
+    const cur = metaByEnroll.get(p.staff_id) || {};
+    if (p.full_name) cur.full_name = p.full_name;
+    if (p.department_name) cur.department_name = p.department_name;
+    metaByEnroll.set(p.staff_id, cur);
+  }
+
+  for (const p of punches) {
+    let empId = byKey.get(p.staff_id.trim().toUpperCase());
+    if (!empId) {
+      const meta = metaByEnroll.get(p.staff_id);
+      const pool = filterEmployeesByDepartment(employees, meta?.department_name || p.department_name);
+      const name = meta?.full_name || p.full_name;
+      if (name) {
+        const exact = pool.find((e) => (e.full_name || "").trim().toUpperCase() === name.trim().toUpperCase());
+        empId = exact?.id ?? fuzzyMatchByName(name, pool) ?? undefined;
+      }
+    }
     if (empId) matched.push({ ...p, employee_id: empId });
-    else unmatched.push({
-      row: p.row,
-      staff_id: p.staff_id,
-      error: `Enroll ID "${p.staff_id}"${p.full_name ? ` (${p.full_name})` : ""} not mapped to a staff profile`,
-    });
+    else {
+      const meta = metaByEnroll.get(p.staff_id);
+      unmatched.push({
+        row: p.row,
+        staff_id: p.staff_id,
+        error: `Enroll ID "${p.staff_id}"${meta?.full_name ? ` (${meta.full_name})` : ""}${
+          meta?.department_name ? ` · ${meta.department_name}` : ""
+        } not mapped — set Biometric Enroll ID on the staff profile`,
+      });
+    }
   }
   return { matched, unmatched };
 }
@@ -397,6 +669,7 @@ export function matchPunchesToEmployees(
 export type EnrollSuggestion = {
   enroll_id: string;
   name?: string;
+  department?: string;
   count: number;
   suggestions: { employee_id: string; full_name: string; score: number }[];
 };
@@ -404,20 +677,33 @@ export type EnrollSuggestion = {
 export function summarizeUnmatched(
   unmatched: ParseError[],
   employees: EmployeeLite[],
+  punches: ParsedPunch[],
 ): EnrollSuggestion[] {
-  const byId = new Map<string, { name?: string; count: number }>();
+  const deptByEnroll = new Map<string, string>();
+  const nameByEnroll = new Map<string, string>();
+  for (const p of punches) {
+    if (p.full_name) nameByEnroll.set(p.staff_id, p.full_name);
+    if (p.department_name) deptByEnroll.set(p.staff_id, p.department_name);
+  }
+
+  const byId = new Map<string, { name?: string; department?: string; count: number }>();
   for (const u of unmatched) {
     if (!u.staff_id) continue;
     const m = u.error.match(/Enroll ID "[^"]+" \(([^)]+)\)/);
-    const cur = byId.get(u.staff_id) || { name: m?.[1], count: 0 };
+    const cur = byId.get(u.staff_id) || {
+      name: nameByEnroll.get(u.staff_id) || m?.[1],
+      department: deptByEnroll.get(u.staff_id),
+      count: 0,
+    };
     cur.count++;
     if (!cur.name && m?.[1]) cur.name = m[1];
     byId.set(u.staff_id, cur);
   }
   const out: EnrollSuggestion[] = [];
   for (const [enroll_id, info] of byId) {
+    const pool = filterEmployeesByDepartment(employees, info.department);
     const t = tokenize(info.name || "");
-    const suggs = employees
+    const suggs = pool
       .map((e) => {
         const et = tokenize(e.full_name || "");
         let score = 0;
@@ -425,18 +711,28 @@ export function summarizeUnmatched(
           if (et.includes(tk)) score += 2;
           else if (et.some((w) => w.startsWith(tk) || tk.startsWith(w))) score += 1;
         }
+        if (info.department && deptMatches(info.department, e.department_names)) score += 3;
         return { employee_id: e.id, full_name: e.full_name || "", score };
       })
       .filter((s) => s.score > 0)
       .sort((a, b) => b.score - a.score)
       .slice(0, 5);
-    out.push({ enroll_id, name: info.name, count: info.count, suggestions: suggs });
+    out.push({
+      enroll_id,
+      name: info.name,
+      department: info.department,
+      count: info.count,
+      suggestions: suggs,
+    });
   }
   return out.sort((a, b) => b.count - a.count);
 }
 
 export const SUPPORTED_FORMATS = [
-  { name: "ZKTeco Monthly Matrix (PRIMARY)", columns: "Attendance Record Report · one row of dates · ID/Name row + punches row per staff" },
-  { name: "ZKTeco / Hikvision punch log", columns: "User ID | Name | DateTime | State (Check In/Out)" },
+  {
+    name: "ZKTeco Attendance Record Report (default)",
+    columns: 'Title row · optional "Att. Time" range · weekday + day rows · "ID: … Name: … Dept.: …" + punch row',
+  },
+  { name: "Legacy punch log", columns: "User ID | Name | DateTime | State (Check In/Out)" },
   { name: "Daily summary", columns: "Staff ID | Date | Time In | Time Out" },
 ];

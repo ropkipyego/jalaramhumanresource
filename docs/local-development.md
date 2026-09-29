@@ -168,6 +168,15 @@ docker compose up -d --build
 
 ## Troubleshooting
 
+**Blank page on `npm run dev` (Vite only)** — Vite reads env from the **repo root** `.env` (not `frontend/`). If the terminal says port **8081**, open **http://localhost:8081** (8080 is already taken, usually by Docker). For the full stack (login + API), prefer:
+
+```bash
+bash scripts/local-dev.sh
+# then http://localhost:8080
+```
+
+Do not use Vite on `:5173` unless you proxy API yourself.
+
 **404 on `/auth`, `/dashboard`, or refresh** — fixed by `frontend/nginx.conf` (SPA fallback). Rebuild:
 
 ```bash
